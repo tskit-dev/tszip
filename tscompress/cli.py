@@ -23,23 +23,65 @@
 Command line interfaces to tscompress.
 """
 import argparse
-import os
-import os.path
 import logging
-import resource
-import math
 
 import daiquiri
 import tskit
-import time
-import numpy as np
 
 import tscompress
 
-
 logger = logging.getLogger(__name__)
 
+
+def setup_logging(args):
+    log_level = "WARN"
+    if args.verbosity > 0:
+        log_level = "INFO"
+    if args.verbosity > 1:
+        log_level = "DEBUG"
+    daiquiri.setup(level=log_level)
+
+
+def tscompress_cli_parser():
+    parser = argparse.ArgumentParser(
+        description="Compress/decompress tskit trees files.")
+    parser.add_argument(
+        "-V", "--version", action='version',
+        version='%(prog)s {}'.format(tscompress.__version__))
+    parser.add_argument(
+        "-v", "--verbosity", action='count', default=0,
+        help="Increase the verbosity")
+    parser.add_argument(
+        "file", help="The file to operate on")
+    parser.add_argument(
+        "-d", "--decompress", action='store_true',
+        help="Decompress")
+    return parser
+
+
+def run_compress(args):
+    logger.info("Compressing {}".format(args.file))
+    ts = tskit.load(args.file)
+    outfile = args.file + ".zarr"
+    tscompress.compress(ts, outfile)
+    # TODO various gzip-like semantics with file
+
+
+def run_decompress(args):
+    logger.info("Decompressing {}".format(args.file))
+    if not args.file.endswith(".zarr"):
+        raise ValueError("Compressed file must have .zarr suffix")
+    ts = tscompress.decompress(args.file)
+    outfile = args.file[:-5]
+    logger.info("Writing to {}".format(outfile))
+    ts.dump(outfile)
+
+
 def tscompress_main(arg_list=None):
-    parser = get_cli_parser()
+    parser = tscompress_cli_parser()
     args = parser.parse_args(arg_list)
-    args.runner(args)
+    setup_logging(args)
+    if args.decompress:
+        run_decompress(args)
+    else:
+        run_compress(args)
