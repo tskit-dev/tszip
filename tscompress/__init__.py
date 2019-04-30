@@ -27,4 +27,5 @@ try:
 except ImportError:
     pass
 
-from .cli import get_cli_parser  # NOQA
+from .compression import compress  # NOQA
+from .compression import decompress  # NOQA
