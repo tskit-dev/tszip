@@ -32,7 +32,37 @@ import numpy as np
 import tszip
 
 
-class TestGenotypeRoundTrip(unittest.TestCase):
+class RoundTripMixin(object):
+    """
+    Set of example tree sequences that we should be able to round trip.
+    """
+    def test_small_msprime_no_recomb(self):
+        ts = msprime.simulate(10, mutation_rate=2, random_seed=2)
+        self.assertGreater(ts.num_sites, 2)
+        self.verify(ts)
+
+    def test_small_msprime_recomb(self):
+        ts = msprime.simulate(10, recombination_rate=2, mutation_rate=2, random_seed=2)
+        self.assertGreater(ts.num_sites, 2)
+        self.assertGreater(ts.num_trees, 2)
+        self.verify(ts)
+
+    def test_small_msprime_migration(self):
+        ts = msprime.simulate(
+            population_configurations=[
+                msprime.PopulationConfiguration(10),
+                msprime.PopulationConfiguration(10)],
+            migration_matrix=[[0, 1], [1, 0]],
+            record_migrations=True,
+            recombination_rate=2, mutation_rate=2, random_seed=2)
+        self.assertGreater(ts.num_sites, 2)
+        self.assertGreater(ts.num_migrations, 1)
+        self.assertGreater(ts.num_trees, 2)
+        self.verify(ts)
+
+
+
+class TestGenotypeRoundTrip(unittest.TestCase, RoundTripMixin):
     """
     Tests that we can correctly roundtrip genotype data losslessly.
     """
@@ -45,13 +75,11 @@ class TestGenotypeRoundTrip(unittest.TestCase):
         G2 = other_ts.genotype_matrix()
         self.assertTrue(np.array_equal(G1, G2))
 
-    def test_small_msprime_no_recomb(self):
-        ts = msprime.simulate(10, mutation_rate=2, random_seed=2)
-        self.assertGreater(ts.num_sites, 2)
-        self.verify(ts)
 
-    def test_small_msprime_recomb(self):
-        ts = msprime.simulate(10, recombination_rate=2, mutation_rate=2, random_seed=2)
-        self.assertGreater(ts.num_sites, 2)
-        self.assertGreater(ts.num_trees, 2)
-        self.verify(ts)
+class TestExactRoundTrip(unittest.TestCase, RoundTripMixin):
+    def verify(self, ts):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pathlib.Path(tmpdir) / "treeseq.tsz"
+            tszip.compress(ts, path)
+            other_ts = tszip.decompress(path)
+        self.assertEqual(ts.tables, other_ts.tables)

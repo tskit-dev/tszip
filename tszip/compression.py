@@ -50,6 +50,141 @@ def compress(ts, path):
 
 
 def compress_zarr(ts, root):
+    tables = ts.dump_tables()
+    root.attrs["sequence_length"] = tables.sequence_length
+
+    compressor = numcodecs.Blosc(cname='zstd', clevel=9, shuffle=numcodecs.Blosc.SHUFFLE)
+
+    arrays = {
+        "individuals/flags": tables.individuals.flags,
+        "individuals/location": tables.individuals.location,
+        "individuals/location_offset": tables.individuals.location_offset,
+        "individuals/metadata": tables.individuals.metadata,
+        "individuals/metadata_offset": tables.individuals.metadata_offset,
+
+        "nodes/flags": tables.nodes.flags,
+        "nodes/time": tables.nodes.time,
+        "nodes/population": tables.nodes.population,
+        "nodes/individual": tables.nodes.individual,
+        "nodes/metadata": tables.nodes.metadata,
+        "nodes/metadata_offset": tables.nodes.metadata_offset,
+
+        "edges/left": tables.edges.left,
+        "edges/right": tables.edges.right,
+        "edges/parent": tables.edges.parent,
+        "edges/child": tables.edges.child,
+
+        "migrations/left": tables.migrations.left,
+        "migrations/right": tables.migrations.right,
+        "migrations/node": tables.migrations.node,
+        "migrations/source": tables.migrations.source,
+        "migrations/dest": tables.migrations.dest,
+        "migrations/time": tables.migrations.time,
+
+        "sites/position": tables.sites.position,
+        "sites/ancestral_state": tables.sites.ancestral_state,
+        "sites/ancestral_state_offset": tables.sites.ancestral_state_offset,
+        "sites/metadata": tables.sites.metadata,
+        "sites/metadata_offset": tables.sites.metadata_offset,
+
+        "mutations/site": tables.mutations.site,
+        "mutations/node": tables.mutations.node,
+        "mutations/parent": tables.mutations.parent,
+        "mutations/derived_state": tables.mutations.derived_state,
+        "mutations/derived_state_offset": tables.mutations.derived_state_offset,
+        "mutations/metadata": tables.mutations.metadata,
+        "mutations/metadata_offset": tables.mutations.metadata_offset,
+
+        "populations/metadata": tables.populations.metadata,
+        "populations/metadata_offset": tables.populations.metadata_offset,
+
+        "provenances/timestamp": tables.provenances.timestamp,
+        "provenances/timestamp_offset": tables.provenances.timestamp_offset,
+        "provenances/record": tables.provenances.record,
+        "provenances/record_offset": tables.provenances.record_offset,
+    }
+    filters = None
+
+    for column_name, array in arrays.items():
+        compressed_col = root.empty(
+            column_name, shape=array.shape, dtype=array.dtype, filters=filters,
+            compressor=compressor)
+        compressed_col[:] = array
+        # print(compressed_col.info)
+
+
+def decompress(path):
+    """
+    Returns a decompressed tskit tree sequence read from the specified path.
+    """
+    store = zarr.ZipStore(path, mode='r')
+    root = zarr.group(store=store)
+    return decompress_zarr(root)
+
+
+def decompress_zarr(root):
+    tables = tskit.TableCollection(root.attrs["sequence_length"])
+
+    tables.individuals.set_columns(
+        flags=root["individuals/flags"],
+        location=root["individuals/location"],
+        location_offset=root["individuals/location_offset"],
+        metadata=root["individuals/metadata"],
+        metadata_offset=root["individuals/metadata_offset"])
+
+    tables.nodes.set_columns(
+        flags=root["nodes/flags"],
+        time=root["nodes/time"],
+        population=root["nodes/population"],
+        individual=root["nodes/individual"],
+        metadata=root["nodes/metadata"],
+        metadata_offset=root["nodes/metadata_offset"])
+
+    tables.edges.set_columns(
+        left=root["edges/left"],
+        right=root["edges/right"],
+        parent=root["edges/parent"],
+        child=root["edges/child"])
+
+    tables.migrations.set_columns(
+        left=root["migrations/left"],
+        right=root["migrations/right"],
+        node=root["migrations/node"],
+        source=root["migrations/source"],
+        dest=root["migrations/dest"],
+        time=root["migrations/time"])
+
+    tables.sites.set_columns(
+        position=root["sites/position"],
+        ancestral_state=root["sites/ancestral_state"],
+        ancestral_state_offset=root["sites/ancestral_state_offset"],
+        metadata=root["sites/metadata"],
+        metadata_offset=root["sites/metadata_offset"])
+
+    tables.mutations.set_columns(
+        site=root["mutations/site"],
+        node=root["mutations/node"],
+        parent=root["mutations/parent"],
+        derived_state=root["mutations/derived_state"],
+        derived_state_offset=root["mutations/derived_state_offset"],
+        metadata=root["mutations/metadata"],
+        metadata_offset=root["mutations/metadata_offset"])
+
+    tables.populations.set_columns(
+        metadata=root["populations/metadata"],
+        metadata_offset=root["populations/metadata_offset"])
+
+    tables.provenances.set_columns(
+        timestamp=root["provenances/timestamp"],
+        timestamp_offset=root["provenances/timestamp_offset"],
+        record=root["provenances/record"],
+        record_offset=root["provenances/record_offset"])
+
+    # print(tables)
+    return tables.tree_sequence()
+
+
+def compress_zarr_agressive(ts, root):
     # TODO this current version is the most extreme option where we throw away
     # all the non-site information.
 
@@ -101,16 +236,7 @@ def compress_zarr(ts, root):
     node[:] = tables.mutations.node
 
 
-def decompress(path):
-    """
-    Returns a decompressed tskit tree sequence read from the specified path.
-    """
-    store = zarr.ZipStore(path, mode='r')
-    root = zarr.group(store=store)
-    return decompress_zarr(root)
-
-
-def decompress_zarr(root):
+def decompress_zarr_aggressive(root):
     site = root["mutations/site"][:]
     num_sites = site[-1] + 1
     n = site.shape[0]
