@@ -61,19 +61,26 @@ class RoundTripMixin(object):
         self.verify(ts)
 
 
-
 class TestGenotypeRoundTrip(unittest.TestCase, RoundTripMixin):
     """
     Tests that we can correctly roundtrip genotype data losslessly.
     """
     def verify(self, ts):
+        if ts.num_migrations > 0:
+            raise unittest.SkipTest("Migrations not supported")
         with tempfile.TemporaryDirectory() as tmpdir:
             path = pathlib.Path(tmpdir) / "treeseq.tsz"
-            tszip.compress(ts, path)
+            tszip.compress(ts, path, variants_only=True)
             other_ts = tszip.decompress(path)
-        G1 = ts.genotype_matrix()
-        G2 = other_ts.genotype_matrix()
-        self.assertTrue(np.array_equal(G1, G2))
+        self.assertEqual(ts.num_sites, other_ts.num_sites)
+        # G1 = ts.genotype_matrix()
+        # G2 = other_ts.genotype_matrix()
+        # self.assertTrue(np.array_equal(G1, G2))
+        for var1, var2 in zip(ts.variants(), other_ts.variants()):
+            self.assertTrue(np.array_equal(var1.genotypes, var2.genotypes))
+            self.assertEqual(var1.site.position, var2.site.position)
+            self.assertEqual(var1.alleles, var2.alleles)
+
 
 
 class TestExactRoundTrip(unittest.TestCase, RoundTripMixin):

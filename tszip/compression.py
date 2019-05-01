@@ -29,101 +29,178 @@ import numcodecs
 import zarr
 import numpy as np
 import tskit
+import humanize
 
 logger = logging.getLogger(__name__)
 
 
-def compress(ts, path):
+def compute_dtype(array):
+    """
+    Returns the smallest dtype that can be used to represent the values in the
+    specified array.
+    """
+    dtype = array.dtype
+    if array.shape[0] == 0:
+        return dtype
+    if dtype.kind == 'u':
+        maxval = np.max(array)
+        dtypes = [np.uint8(), np.uint16(), np.uint32(), np.uint64()]
+        for dtype in dtypes:
+            if maxval <= np.iinfo(dtype).max:
+                break
+    elif dtype.kind == 'i':
+        minval = np.min(array)
+        maxval = np.max(array)
+        dtypes = [np.int8(), np.int16(), np.int32(), np.int64()]
+        for dtype in dtypes:
+            if np.iinfo(dtype).min <= minval and maxval <= np.iinfo(dtype).max:
+                break
+    return dtype
+
+
+def compress(ts, path, compressor=None, variants_only=False):
     """
     Compresses the specified tree sequence and writes it to the specified
     path.
     """
     logging.info("Compressing to {}".format(path))
+    # TODO use a temporary file here and mv once finished. Otherwise can't
+    # be sure that the file is correctly written.
     try:
         store = zarr.ZipStore(path, mode='w')
         root = zarr.group(store=store)
-        compress_zarr(ts, root)
+        compress_zarr(ts, root, compressor=compressor, variants_only=variants_only)
         store.close()
     except Exception as e:
         os.unlink(path)
         raise e
 
 
-def compress_zarr(ts, root):
+class Column(object):
+    def __init__(self, name, array, delta_filter=False):
+        self.name = name
+        self.array = array
+        self.delta_filter = delta_filter
+
+    def compress(self, root, compressor):
+        shape = self.array.shape
+        chunks = shape
+        if shape[0] == 0:
+            chunks = 1,
+        dtype = compute_dtype(self.array)
+        filters = None
+        if self.delta_filter:
+            filters = [numcodecs.Delta(dtype=dtype)]
+        compressed_array = root.empty(
+            self.name, chunks=chunks, shape=shape, dtype=dtype,
+            filters=filters, compressor=compressor)
+        compressed_array[:] = self.array
+        ratio = 0
+        if compressed_array.nbytes > 0:
+            ratio = compressed_array.nbytes / compressed_array.nbytes_stored
+        logger.debug("{}: output={} compression={:.1f}".format(
+            self.name,
+            humanize.naturalsize(compressed_array.nbytes_stored, binary=True),
+            ratio))
+
+
+def compress_zarr(ts, root, compressor=None, variants_only=False):
     tables = ts.dump_tables()
+
+    coordinates = np.unique(np.hstack([
+        [0, ts.sequence_length], tables.edges.left, tables.edges.right,
+        tables.sites.position, tables.migrations.left, tables.migrations.right]))
+
+    if variants_only:
+        logging.info("Using lossy variants-only compression")
+        # Reduce to site topology and quantise node times.
+        tables.simplify(reduce_to_site_topology=True)
+        time = np.unique(tables.nodes.time)
+        node_time = np.searchsorted(time, tables.nodes.time)
+    else:
+        node_time = tables.nodes.time
+
     root.attrs["sequence_length"] = tables.sequence_length
 
-    compressor = numcodecs.Blosc(cname='zstd', clevel=9, shuffle=numcodecs.Blosc.SHUFFLE)
+    columns = [
+        Column("coordinates", coordinates),
+        Column("individuals/flags", tables.individuals.flags),
+        Column("individuals/location", tables.individuals.location),
+        Column(
+            "individuals/location_offset", tables.individuals.location_offset,
+            delta_filter=True),
+        Column("individuals/metadata", tables.individuals.metadata),
+        Column(
+            "individuals/metadata_offset", tables.individuals.metadata_offset,
+            delta_filter=True),
 
-    arrays = {
-        "individuals/flags": tables.individuals.flags,
-        "individuals/location": tables.individuals.location,
-        "individuals/location_offset": tables.individuals.location_offset,
-        "individuals/metadata": tables.individuals.metadata,
-        "individuals/metadata_offset": tables.individuals.metadata_offset,
+        Column("nodes/time", node_time),
+        Column("nodes/flags", tables.nodes.flags),
+        Column("nodes/population", tables.nodes.population),
+        Column("nodes/individual", tables.nodes.individual),
+        Column("nodes/metadata", tables.nodes.metadata),
+        Column(
+            "nodes/metadata_offset", tables.nodes.metadata_offset, delta_filter=True),
 
-        "nodes/flags": tables.nodes.flags,
-        "nodes/time": tables.nodes.time,
-        "nodes/population": tables.nodes.population,
-        "nodes/individual": tables.nodes.individual,
-        "nodes/metadata": tables.nodes.metadata,
-        "nodes/metadata_offset": tables.nodes.metadata_offset,
+        # Delta filtering makes storage slightly worse for everything except parent.
+        Column("edges/left", np.searchsorted(coordinates, tables.edges.left)),
+        Column("edges/right", np.searchsorted(coordinates, tables.edges.right)),
+        Column("edges/parent", tables.edges.parent, delta_filter=True),
+        Column("edges/child", tables.edges.child),
 
-        "edges/left": tables.edges.left,
-        "edges/right": tables.edges.right,
-        "edges/parent": tables.edges.parent,
-        "edges/child": tables.edges.child,
+        Column("migrations/left", np.searchsorted(coordinates, tables.migrations.left)),
+        Column(
+            "migrations/right", np.searchsorted(coordinates, tables.migrations.right)),
+        Column("migrations/node", tables.migrations.node),
+        Column("migrations/source", tables.migrations.source),
+        Column("migrations/dest", tables.migrations.dest),
+        Column("migrations/time", tables.migrations.time),
 
-        "migrations/left": tables.migrations.left,
-        "migrations/right": tables.migrations.right,
-        "migrations/node": tables.migrations.node,
-        "migrations/source": tables.migrations.source,
-        "migrations/dest": tables.migrations.dest,
-        "migrations/time": tables.migrations.time,
+        Column(
+            "sites/position", np.searchsorted(coordinates, tables.sites.position),
+            delta_filter=True),
+        Column("sites/ancestral_state", tables.sites.ancestral_state),
+        Column("sites/ancestral_state_offset", tables.sites.ancestral_state_offset),
+        Column("sites/metadata", tables.sites.metadata),
+        Column("sites/metadata_offset", tables.sites.metadata_offset),
 
-        "sites/position": tables.sites.position,
-        "sites/ancestral_state": tables.sites.ancestral_state,
-        "sites/ancestral_state_offset": tables.sites.ancestral_state_offset,
-        "sites/metadata": tables.sites.metadata,
-        "sites/metadata_offset": tables.sites.metadata_offset,
+        Column("mutations/site", tables.mutations.site),
+        Column("mutations/node", tables.mutations.node),
+        Column("mutations/parent", tables.mutations.parent),
+        Column("mutations/derived_state", tables.mutations.derived_state),
+        Column("mutations/derived_state_offset", tables.mutations.derived_state_offset),
+        Column("mutations/metadata", tables.mutations.metadata),
+        Column("mutations/metadata_offset", tables.mutations.metadata_offset),
 
-        "mutations/site": tables.mutations.site,
-        "mutations/node": tables.mutations.node,
-        "mutations/parent": tables.mutations.parent,
-        "mutations/derived_state": tables.mutations.derived_state,
-        "mutations/derived_state_offset": tables.mutations.derived_state_offset,
-        "mutations/metadata": tables.mutations.metadata,
-        "mutations/metadata_offset": tables.mutations.metadata_offset,
+        Column("populations/metadata", tables.populations.metadata),
+        Column("populations/metadata_offset", tables.populations.metadata_offset),
 
-        "populations/metadata": tables.populations.metadata,
-        "populations/metadata_offset": tables.populations.metadata_offset,
+        Column("provenances/timestamp", tables.provenances.timestamp),
+        Column("provenances/timestamp_offset", tables.provenances.timestamp_offset),
+        Column("provenances/record", tables.provenances.record),
+        Column("provenances/record_offset", tables.provenances.record_offset),
+    ]
+    if compressor is None:
+        compressor = numcodecs.Blosc(
+            cname='zstd', clevel=9, shuffle=numcodecs.Blosc.SHUFFLE)
+    for column in columns:
+        column.compress(root, compressor)
 
-        "provenances/timestamp": tables.provenances.timestamp,
-        "provenances/timestamp_offset": tables.provenances.timestamp_offset,
-        "provenances/record": tables.provenances.record,
-        "provenances/record_offset": tables.provenances.record_offset,
-    }
-    filters = None
 
-    for column_name, array in arrays.items():
-        compressed_col = root.empty(
-            column_name, shape=array.shape, dtype=array.dtype, filters=filters,
-            compressor=compressor)
-        compressed_col[:] = array
-        # print(compressed_col.info)
+def load_zarr(path):
+    store = zarr.ZipStore(path, mode='r')
+    root = zarr.group(store=store)
+    # TODO check the file format name and the version.
+    return root
 
 
 def decompress(path):
     """
     Returns a decompressed tskit tree sequence read from the specified path.
     """
-    store = zarr.ZipStore(path, mode='r')
-    root = zarr.group(store=store)
-    return decompress_zarr(root)
-
-
-def decompress_zarr(root):
+    root = load_zarr(path)
     tables = tskit.TableCollection(root.attrs["sequence_length"])
+    coordinates = root["coordinates"][:]
 
     tables.individuals.set_columns(
         flags=root["individuals/flags"],
@@ -141,21 +218,21 @@ def decompress_zarr(root):
         metadata_offset=root["nodes/metadata_offset"])
 
     tables.edges.set_columns(
-        left=root["edges/left"],
-        right=root["edges/right"],
+        left=coordinates[root["edges/left"]],
+        right=coordinates[root["edges/right"]],
         parent=root["edges/parent"],
         child=root["edges/child"])
 
     tables.migrations.set_columns(
-        left=root["migrations/left"],
-        right=root["migrations/right"],
+        left=coordinates[root["migrations/left"]],
+        right=coordinates[root["migrations/right"]],
         node=root["migrations/node"],
         source=root["migrations/source"],
         dest=root["migrations/dest"],
         time=root["migrations/time"])
 
     tables.sites.set_columns(
-        position=root["sites/position"],
+        position=coordinates[root["sites/position"]],
         ancestral_state=root["sites/ancestral_state"],
         ancestral_state_offset=root["sites/ancestral_state_offset"],
         metadata=root["sites/metadata"],
@@ -180,84 +257,20 @@ def decompress_zarr(root):
         record=root["provenances/record"],
         record_offset=root["provenances/record_offset"])
 
-    # print(tables)
     return tables.tree_sequence()
 
 
-def compress_zarr_agressive(ts, root):
-    # TODO this current version is the most extreme option where we throw away
-    # all the non-site information.
+def print_summary(path):
+    root = load_zarr(path)
 
-    # First reduce to site topology
-    tables = ts.dump_tables()
-    tables.simplify(reduce_to_site_topology=True)
+    def visitor(array):
+        if isinstance(array, zarr.core.Array):
+            # ratio = 0
+            # if array.nbytes > 0:
+            #     ratio = array.nbytes_stored / array.nbytes
+            print(
+                array.nbytes_stored, humanize.naturalsize(array.nbytes_stored),
+                array.name, sep="\t")
+            # print(array.info)
 
-    nodes = root.create_group("nodes")
-    flags = nodes.empty("flags", shape=len(tables.nodes), dtype=np.uint8)
-    flags[:] = tables.nodes.flags
-    logger.debug(flags.info)
-
-    # Get the indexes into the position array.
-    pos_map = np.hstack([tables.sites.position, [tables.sequence_length]])
-    pos_map[0] = 0
-    left_mapped = np.searchsorted(pos_map, tables.edges.left)
-    if np.any(pos_map[left_mapped] != tables.edges.left):
-        raise ValueError("Invalid left coordinates")
-    right_mapped = np.searchsorted(pos_map, tables.edges.right)
-    if np.any(pos_map[right_mapped] != tables.edges.right):
-        raise ValueError("Invalid right coordinates")
-
-    filters = [numcodecs.Delta(dtype=np.int32, astype=np.int32)]
-    compressor = numcodecs.Blosc(cname='zstd', clevel=9, shuffle=numcodecs.Blosc.SHUFFLE)
-    edges = root.create_group("edges")
-    parent = edges.empty(
-        "parent", shape=len(tables.edges), dtype=np.int32, filters=filters,
-        compressor=compressor)
-    child = edges.empty(
-        "child", shape=len(tables.edges), dtype=np.int32, filters=filters,
-        compressor=compressor)
-    left = edges.empty(
-        "left", shape=len(tables.edges), dtype=np.uint32, filters=filters,
-        compressor=compressor)
-    right = edges.empty(
-        "right", shape=len(tables.edges), dtype=np.uint32, filters=filters,
-        compressor=compressor)
-    parent[:] = tables.edges.parent
-    child[:] = tables.edges.child
-    left[:] = left_mapped
-    right[:] = right_mapped
-
-    mutations = root.create_group("mutations")
-    site = mutations.empty(
-        "site", shape=len(tables.mutations), dtype=np.int32, compressor=compressor)
-    node = mutations.empty(
-        "node", shape=len(tables.mutations), dtype=np.int32, compressor=compressor)
-    site[:] = tables.mutations.site
-    node[:] = tables.mutations.node
-
-
-def decompress_zarr_aggressive(root):
-    site = root["mutations/site"][:]
-    num_sites = site[-1] + 1
-    n = site.shape[0]
-    tables = tskit.TableCollection(num_sites)
-    tables.mutations.set_columns(
-        node=root["mutations/node"],
-        site=site,
-        derived_state=np.zeros(n, dtype=np.int8) + ord("1"),
-        derived_state_offset=np.arange(n + 1, dtype=np.uint32))
-    tables.sites.set_columns(
-        position=np.arange(num_sites),
-        ancestral_state=np.zeros(num_sites, dtype=np.int8) + ord("0"),
-        ancestral_state_offset=np.arange(num_sites + 1, dtype=np.uint32))
-    flags = root["nodes/flags"][:]
-    n = flags.shape[0]
-    tables.nodes.set_columns(
-        flags=flags.astype(np.uint32),
-        time=np.arange(n))
-    tables.edges.set_columns(
-        left=root["edges/left"],
-        right=root["edges/right"],
-        parent=root["edges/parent"],
-        child=root["edges/child"])
-    return tables.tree_sequence()
+    root.visitvalues(visitor)

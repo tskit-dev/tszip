@@ -29,3 +29,4 @@ except ImportError:
 
 from .compression import compress  # NOQA
 from .compression import decompress  # NOQA
+from .compression import print_summary  # NOQA

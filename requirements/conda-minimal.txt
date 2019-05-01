@@ -2,5 +2,5 @@ nose
 msprime
 tskit
 zarr
-kastore
-mock
+daiquiri
+humanize
