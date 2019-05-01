@@ -4,13 +4,13 @@ with open("README.rst") as f:
     long_description = f.read()
 
 setup(
-    name="tscompress",
+    name="tszip",
     description="Compression utilities for tree sequences",
     long_description=long_description,
-    packages=["tscompress"],
+    packages=["tszip"],
     author="Tskit Developers",
     author_email="jerome.kelleher@well.ox.ac.uk",
-    url="http://pypi.python.org/pypi/tscompress",
+    url="http://pypi.python.org/pypi/tszip",
     setup_requires=['setuptools_scm'],
     install_requires=[
         "numpy",
@@ -38,13 +38,13 @@ setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
     project_urls={
-        'Bug Reports': 'https://github.com/tskit-dev/tscompress/issues',
-        'Source': 'https://github.com/tskit-dev/tscompress',
+        'Bug Reports': 'https://github.com/tskit-dev/tszip/issues',
+        'Source': 'https://github.com/tskit-dev/tszip',
     },
     entry_points={
         'console_scripts': [
-            'tscompress=tscompress.__main__:main',
+            'tszip=tszip.__main__:main',
         ]
     },
-    use_scm_version={"write_to": "tscompress/_version.py"},
+    use_scm_version={"write_to": "tszip/_version.py"},
 )
