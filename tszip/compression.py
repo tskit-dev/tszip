@@ -26,6 +26,9 @@ import logging
 import os
 import warnings
 import contextlib
+import zipfile
+import tempfile
+import os.path
 
 import numcodecs
 import zarr
@@ -33,10 +36,12 @@ import numpy as np
 import tskit
 import humanize
 
+from . import exceptions
+
 logger = logging.getLogger(__name__)
 
 FORMAT_NAME = "tszip"
-FORMAT_VERSION = (1, 0)
+FORMAT_VERSION = [1, 0]
 
 
 def minimal_dtype(array):
@@ -64,21 +69,19 @@ def minimal_dtype(array):
     return dtype
 
 
-def compress(ts, path, compressor=None, variants_only=False):
+def compress(ts, destination, compressor=None, variants_only=False):
     """
-    Compresses the specified tree sequence and writes it to the specified
-    path.
+    Compresses the specified tree sequence and writes it to the specified path.
     """
-    logging.info("Compressing to {}".format(path))
-    # TODO use a temporary file here and mv once finished. Otherwise can't
-    # be sure that the file is correctly written.
-    try:
-        with zarr.ZipStore(path, mode='w') as store:
+    logging.info("Compressing to {}".format(destination))
+    # Write the file into a temporary directory so that we can write the
+    # output atomically.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, "tmp.trees.tgz")
+        with zarr.ZipStore(filename, mode='w') as store:
             root = zarr.group(store=store)
             compress_zarr(ts, root, compressor=compressor, variants_only=variants_only)
-    except Exception as e:
-        os.unlink(path)
-        raise e
+        os.rename(filename, destination)
 
 
 class Column(object):
@@ -200,16 +203,17 @@ def compress_zarr(ts, root, compressor=None, variants_only=False):
     for column in columns:
         column.compress(root, compressor)
 
+
 def check_format(root):
     try:
         format_name = root.attrs["format_name"]
         format_version = root.attrs["format_version"]
-    except KeyError:
-        raise exceptions.FileFormatError("Incorrect file format")
+    except KeyError as ke:
+        raise exceptions.FileFormatError("Incorrect file format") from ke
     if format_name != FORMAT_NAME:
         raise exceptions.FileFormatError(
             "Incorrect file format: expected '{}' got '{}'".format(
-                self.FORMAT_NAME, format_name))
+                FORMAT_NAME, format_name))
     if format_version[0] < FORMAT_VERSION[0]:
         raise exceptions.FileFormatError(
             "Format version {} too old. Current version = {}".format(
@@ -222,7 +226,10 @@ def check_format(root):
 
 @contextlib.contextmanager
 def load_zarr(path):
-    store = zarr.ZipStore(path, mode='r')
+    try:
+        store = zarr.ZipStore(path, mode='r')
+    except zipfile.BadZipFile as bzf:
+        raise exceptions.FileFormatError("File is not in tgzip format") from bzf
     root = zarr.group(store=store)
     try:
         check_format(root)

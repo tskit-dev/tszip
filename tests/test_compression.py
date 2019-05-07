@@ -28,9 +28,11 @@ import pathlib
 
 import msprime
 import numpy as np
+import zarr
 
 import tszip
 import tszip.compression as compression
+import tszip.exceptions as exceptions
 
 
 class TestMinimalDtype(unittest.TestCase):
@@ -122,9 +124,6 @@ class TestGenotypeRoundTrip(unittest.TestCase, RoundTripMixin):
             tszip.compress(ts, path, variants_only=True)
             other_ts = tszip.decompress(path)
         self.assertEqual(ts.num_sites, other_ts.num_sites)
-        # G1 = ts.genotype_matrix()
-        # G2 = other_ts.genotype_matrix()
-        # self.assertTrue(np.array_equal(G1, G2))
         for var1, var2 in zip(ts.variants(), other_ts.variants()):
             self.assertTrue(np.array_equal(var1.genotypes, var2.genotypes))
             self.assertEqual(var1.site.position, var2.site.position)
@@ -145,3 +144,87 @@ class TestFormat(unittest.TestCase):
     Tests that we correctly write the format information to the file and
     that we read it also.
     """
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.path = pathlib.Path(self.tmpdir.name) / "treeseq.tsz"
+
+    def tearDown(self):
+        del self.tmpdir
+
+    def test_format_written(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tszip.compress(ts, self.path)
+        store = zarr.ZipStore(self.path, mode='r')
+        root = zarr.group(store=store)
+        self.assertEqual(root.attrs["format_name"], compression.FORMAT_NAME)
+        self.assertEqual(root.attrs["format_version"], compression.FORMAT_VERSION)
+
+    def write_file(self, attrs, path):
+        with zarr.ZipStore(path, mode='w') as store:
+            root = zarr.group(store=store)
+            root.attrs.update(attrs)
+
+    def test_missing_format_keys(self):
+        values = [{}, {"format_name": ""}, {"format_version": ""}]
+        for attrs in values:
+            self.write_file(attrs, self.path)
+            with self.assertRaises(exceptions.FileFormatError):
+                tszip.decompress(self.path)
+            with self.assertRaises(exceptions.FileFormatError):
+                tszip.print_summary(self.path)
+
+    def test_bad_format_name(self):
+        for bad_name in ["", "xyz", [1234]]:
+            self.write_file({"format_name": bad_name, "format_version": [1, 0]}, self.path)
+            with self.assertRaises(exceptions.FileFormatError):
+                tszip.decompress(self.path)
+            with self.assertRaises(exceptions.FileFormatError):
+                tszip.print_summary(self.path)
+
+    def test_format_too_old(self):
+        self.write_file({"format_name": "tszip", "format_version": [0, 0]}, self.path)
+        with self.assertRaises(exceptions.FileFormatError):
+            tszip.decompress(self.path)
+        with self.assertRaises(exceptions.FileFormatError):
+            tszip.print_summary(self.path)
+
+    def test_format_too_new(self):
+        self.write_file({"format_name": "tszip", "format_version": [2, 0]}, self.path)
+        with self.assertRaises(exceptions.FileFormatError):
+            tszip.decompress(self.path)
+        with self.assertRaises(exceptions.FileFormatError):
+            tszip.print_summary(self.path)
+
+    def test_wrong_format(self):
+        for contents in ["", "1234", "X" * 1024]:
+            with open(self.path, "w") as f:
+                f.write(contents)
+            with self.assertRaises(exceptions.FileFormatError):
+                tszip.decompress(self.path)
+
+
+class TestFileErrors(unittest.TestCase):
+    """
+    Tests that we correctly write the format information to the file and
+    that we read it also.
+    """
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.path = pathlib.Path(self.tmpdir.name) / "treeseq.tsz"
+
+    def tearDown(self):
+        del self.tmpdir
+
+    def test_missing_file(self):
+        path = "/no/such/file"
+        with self.assertRaises(FileNotFoundError):
+            tszip.decompress(path)
+
+    def test_load_dir(self):
+        with self.assertRaises(IsADirectoryError):
+            tszip.decompress(self.path.parent)
+
+    def test_save_dir(self):
+        ts = msprime.simulate(10, random_seed=1)
+        with self.assertRaises(IsADirectoryError):
+            tszip.compress(ts, self.path.parent)
