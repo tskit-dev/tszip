@@ -24,6 +24,11 @@ Compression utilities for tskit tree sequences.
 """
 import logging
 import os
+import warnings
+import contextlib
+import zipfile
+import tempfile
+import os.path
 
 import numcodecs
 import zarr
@@ -31,52 +36,58 @@ import numpy as np
 import tskit
 import humanize
 
+from . import exceptions
+
 logger = logging.getLogger(__name__)
 
+FORMAT_NAME = "tszip"
+FORMAT_VERSION = [1, 0]
 
-def compute_dtype(array):
+
+def minimal_dtype(array):
     """
     Returns the smallest dtype that can be used to represent the values in the
-    specified array.
+    specified array. If the array is not one of the integer types, the dtype of the
+    array itself is returned directly.
     """
     dtype = array.dtype
     if array.shape[0] == 0:
         return dtype
     if dtype.kind == 'u':
         maxval = np.max(array)
-        dtypes = [np.uint8(), np.uint16(), np.uint32(), np.uint64()]
-        for dtype in dtypes:
+        dtypes = [np.uint8, np.uint16, np.uint32, np.uint64]
+        for dtype in map(np.dtype, dtypes):
             if maxval <= np.iinfo(dtype).max:
                 break
     elif dtype.kind == 'i':
         minval = np.min(array)
         maxval = np.max(array)
-        dtypes = [np.int8(), np.int16(), np.int32(), np.int64()]
-        for dtype in dtypes:
+        dtypes = [np.int8, np.int16, np.int32, np.int64]
+        for dtype in map(np.dtype, dtypes):
             if np.iinfo(dtype).min <= minval and maxval <= np.iinfo(dtype).max:
                 break
     return dtype
 
 
-def compress(ts, path, compressor=None, variants_only=False):
+def compress(ts, destination, compressor=None, variants_only=False):
     """
-    Compresses the specified tree sequence and writes it to the specified
-    path.
+    Compresses the specified tree sequence and writes it to the specified path.
     """
-    logging.info("Compressing to {}".format(path))
-    # TODO use a temporary file here and mv once finished. Otherwise can't
-    # be sure that the file is correctly written.
-    try:
-        store = zarr.ZipStore(path, mode='w')
-        root = zarr.group(store=store)
-        compress_zarr(ts, root, compressor=compressor, variants_only=variants_only)
-        store.close()
-    except Exception as e:
-        os.unlink(path)
-        raise e
+    logging.info("Compressing to {}".format(destination))
+    # Write the file into a temporary directory so that we can write the
+    # output atomically.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, "tmp.trees.tgz")
+        with zarr.ZipStore(filename, mode='w') as store:
+            root = zarr.group(store=store)
+            compress_zarr(ts, root, compressor=compressor, variants_only=variants_only)
+        os.rename(filename, destination)
 
 
 class Column(object):
+    """
+    A single column that is stored in the compressed output.
+    """
     def __init__(self, name, array, delta_filter=False):
         self.name = name
         self.array = array
@@ -87,7 +98,7 @@ class Column(object):
         chunks = shape
         if shape[0] == 0:
             chunks = 1,
-        dtype = compute_dtype(self.array)
+        dtype = minimal_dtype(self.array)
         filters = None
         if self.delta_filter:
             filters = [numcodecs.Delta(dtype=dtype)]
@@ -120,7 +131,13 @@ def compress_zarr(ts, root, compressor=None, variants_only=False):
     else:
         node_time = tables.nodes.time
 
-    root.attrs["sequence_length"] = tables.sequence_length
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        # When using a zipfile in Zarr we get some harmless warnings. See
+        # https://zarr.readthedocs.io/en/stable/api/storage.html#zarr.storage.ZipStore
+        root.attrs["format_name"] = FORMAT_NAME
+        root.attrs["format_version"] = FORMAT_VERSION
+        root.attrs["sequence_length"] = tables.sequence_length
 
     columns = [
         Column("coordinates", coordinates),
@@ -187,81 +204,107 @@ def compress_zarr(ts, root, compressor=None, variants_only=False):
         column.compress(root, compressor)
 
 
+def check_format(root):
+    try:
+        format_name = root.attrs["format_name"]
+        format_version = root.attrs["format_version"]
+    except KeyError as ke:
+        raise exceptions.FileFormatError("Incorrect file format") from ke
+    if format_name != FORMAT_NAME:
+        raise exceptions.FileFormatError(
+            "Incorrect file format: expected '{}' got '{}'".format(
+                FORMAT_NAME, format_name))
+    if format_version[0] < FORMAT_VERSION[0]:
+        raise exceptions.FileFormatError(
+            "Format version {} too old. Current version = {}".format(
+                format_version, FORMAT_VERSION))
+    if format_version[0] > FORMAT_VERSION[0]:
+        raise exceptions.FileFormatError(
+            "Format version {} too new. Current version = {}".format(
+                format_version, FORMAT_VERSION))
+
+
+@contextlib.contextmanager
 def load_zarr(path):
-    store = zarr.ZipStore(path, mode='r')
+    try:
+        store = zarr.ZipStore(path, mode='r')
+    except zipfile.BadZipFile as bzf:
+        raise exceptions.FileFormatError("File is not in tgzip format") from bzf
     root = zarr.group(store=store)
-    # TODO check the file format name and the version.
-    return root
+    try:
+        check_format(root)
+        yield root
+    finally:
+        store.close()
 
 
 def decompress(path):
     """
     Returns a decompressed tskit tree sequence read from the specified path.
     """
-    root = load_zarr(path)
-    tables = tskit.TableCollection(root.attrs["sequence_length"])
-    coordinates = root["coordinates"][:]
+    with load_zarr(path) as root:
+        tables = tskit.TableCollection(root.attrs["sequence_length"])
+        coordinates = root["coordinates"][:]
 
-    tables.individuals.set_columns(
-        flags=root["individuals/flags"],
-        location=root["individuals/location"],
-        location_offset=root["individuals/location_offset"],
-        metadata=root["individuals/metadata"],
-        metadata_offset=root["individuals/metadata_offset"])
+        tables.individuals.set_columns(
+            flags=root["individuals/flags"],
+            location=root["individuals/location"],
+            location_offset=root["individuals/location_offset"],
+            metadata=root["individuals/metadata"],
+            metadata_offset=root["individuals/metadata_offset"])
 
-    tables.nodes.set_columns(
-        flags=root["nodes/flags"],
-        time=root["nodes/time"],
-        population=root["nodes/population"],
-        individual=root["nodes/individual"],
-        metadata=root["nodes/metadata"],
-        metadata_offset=root["nodes/metadata_offset"])
+        tables.nodes.set_columns(
+            flags=root["nodes/flags"],
+            time=root["nodes/time"],
+            population=root["nodes/population"],
+            individual=root["nodes/individual"],
+            metadata=root["nodes/metadata"],
+            metadata_offset=root["nodes/metadata_offset"])
 
-    tables.edges.set_columns(
-        left=coordinates[root["edges/left"]],
-        right=coordinates[root["edges/right"]],
-        parent=root["edges/parent"],
-        child=root["edges/child"])
+        tables.edges.set_columns(
+            left=coordinates[root["edges/left"]],
+            right=coordinates[root["edges/right"]],
+            parent=root["edges/parent"],
+            child=root["edges/child"])
 
-    tables.migrations.set_columns(
-        left=coordinates[root["migrations/left"]],
-        right=coordinates[root["migrations/right"]],
-        node=root["migrations/node"],
-        source=root["migrations/source"],
-        dest=root["migrations/dest"],
-        time=root["migrations/time"])
+        tables.migrations.set_columns(
+            left=coordinates[root["migrations/left"]],
+            right=coordinates[root["migrations/right"]],
+            node=root["migrations/node"],
+            source=root["migrations/source"],
+            dest=root["migrations/dest"],
+            time=root["migrations/time"])
 
-    tables.sites.set_columns(
-        position=coordinates[root["sites/position"]],
-        ancestral_state=root["sites/ancestral_state"],
-        ancestral_state_offset=root["sites/ancestral_state_offset"],
-        metadata=root["sites/metadata"],
-        metadata_offset=root["sites/metadata_offset"])
+        tables.sites.set_columns(
+            position=coordinates[root["sites/position"]],
+            ancestral_state=root["sites/ancestral_state"],
+            ancestral_state_offset=root["sites/ancestral_state_offset"],
+            metadata=root["sites/metadata"],
+            metadata_offset=root["sites/metadata_offset"])
 
-    tables.mutations.set_columns(
-        site=root["mutations/site"],
-        node=root["mutations/node"],
-        parent=root["mutations/parent"],
-        derived_state=root["mutations/derived_state"],
-        derived_state_offset=root["mutations/derived_state_offset"],
-        metadata=root["mutations/metadata"],
-        metadata_offset=root["mutations/metadata_offset"])
+        tables.mutations.set_columns(
+            site=root["mutations/site"],
+            node=root["mutations/node"],
+            parent=root["mutations/parent"],
+            derived_state=root["mutations/derived_state"],
+            derived_state_offset=root["mutations/derived_state_offset"],
+            metadata=root["mutations/metadata"],
+            metadata_offset=root["mutations/metadata_offset"])
 
-    tables.populations.set_columns(
-        metadata=root["populations/metadata"],
-        metadata_offset=root["populations/metadata_offset"])
+        tables.populations.set_columns(
+            metadata=root["populations/metadata"],
+            metadata_offset=root["populations/metadata_offset"])
 
-    tables.provenances.set_columns(
-        timestamp=root["provenances/timestamp"],
-        timestamp_offset=root["provenances/timestamp_offset"],
-        record=root["provenances/record"],
-        record_offset=root["provenances/record_offset"])
+        tables.provenances.set_columns(
+            timestamp=root["provenances/timestamp"],
+            timestamp_offset=root["provenances/timestamp_offset"],
+            record=root["provenances/record"],
+            record_offset=root["provenances/record_offset"])
 
     return tables.tree_sequence()
 
 
 def print_summary(path):
-    root = load_zarr(path)
 
     def visitor(array):
         if isinstance(array, zarr.core.Array):
@@ -273,4 +316,5 @@ def print_summary(path):
                 array.name, sep="\t")
             # print(array.info)
 
-    root.visitvalues(visitor)
+    with load_zarr(path) as root:
+        root.visitvalues(visitor)

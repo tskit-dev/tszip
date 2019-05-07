@@ -55,7 +55,9 @@ def tszip_cli_parser():
         "file", help="The file to operate on")
     parser.add_argument(
         "--variants-only", action='store_true',
-        help="Lossy compression; throws information not needed to represent variants")
+        help=(
+            "Lossy compression; throws out information not needed to "
+            "represent variants"))
     parser.add_argument(
         "-d", "--decompress", action='store_true',
         help="Decompress")
