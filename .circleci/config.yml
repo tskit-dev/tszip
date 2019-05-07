@@ -27,8 +27,8 @@ jobs:
             nosetests -v --with-coverage --cover-package tszip \
               --cover-branches --cover-erase --cover-xml \
               --cover-inclusive tests
-            # python3 -m codecov 
-            # rm .coverage
+            python3 -m codecov 
+            rm .coverage
 
       - run:
           name: Build Python package

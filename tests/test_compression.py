@@ -175,7 +175,8 @@ class TestFormat(unittest.TestCase):
 
     def test_bad_format_name(self):
         for bad_name in ["", "xyz", [1234]]:
-            self.write_file({"format_name": bad_name, "format_version": [1, 0]}, self.path)
+            self.write_file(
+                {"format_name": bad_name, "format_version": [1, 0]}, self.path)
             with self.assertRaises(exceptions.FileFormatError):
                 tszip.decompress(self.path)
             with self.assertRaises(exceptions.FileFormatError):

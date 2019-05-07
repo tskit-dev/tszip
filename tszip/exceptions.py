@@ -23,6 +23,7 @@
 Exceptions raised by tszip.
 """
 
+
 class TszipException(Exception):
     """
     Superclass of all exceptions thrown by tszip.
