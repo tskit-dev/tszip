@@ -39,7 +39,7 @@ def setup_logging(args):
         log_level = "INFO"
     if args.verbosity > 1:
         log_level = "DEBUG"
-    daiquiri.setup(level=log_level)
+    daiquiri.setup(log_level)
 
 
 def tszip_cli_parser():
@@ -54,8 +54,14 @@ def tszip_cli_parser():
     parser.add_argument(
         "file", help="The file to operate on")
     parser.add_argument(
+        "--variants-only", action='store_true',
+        help="Lossy compression; throws information not needed to represent variants")
+    parser.add_argument(
         "-d", "--decompress", action='store_true',
         help="Decompress")
+    parser.add_argument(
+        "-l", "--list", action='store_true',
+        help="List contents of the file")
     return parser
 
 
@@ -63,7 +69,7 @@ def run_compress(args):
     logger.info("Compressing {}".format(args.file))
     ts = tskit.load(args.file)
     outfile = args.file + ".zarr"
-    tszip.compress(ts, outfile)
+    tszip.compress(ts, outfile, variants_only=args.variants_only)
     # TODO various gzip-like semantics with file
 
 
@@ -77,11 +83,17 @@ def run_decompress(args):
     ts.dump(outfile)
 
 
+def run_list(args):
+    tszip.print_summary(args.file)
+
+
 def tszip_main(arg_list=None):
     parser = tszip_cli_parser()
     args = parser.parse_args(arg_list)
     setup_logging(args)
     if args.decompress:
         run_decompress(args)
+    elif args.list:
+        run_list(args)
     else:
         run_compress(args)

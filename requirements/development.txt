@@ -9,3 +9,5 @@ sphinx-issues
 tskit
 zarr
 msprime
+daiquiri
+humanize

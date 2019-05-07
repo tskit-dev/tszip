@@ -4,3 +4,5 @@ scanner:
 
 flake8:  
     max-line-length: 89
+
+no_blank_comment: False

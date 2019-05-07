@@ -15,6 +15,7 @@ setup(
     install_requires=[
         "numpy",
         "daiquiri",
+        "humanize",
         "tskit",
         "numcodecs",
         "zarr",
