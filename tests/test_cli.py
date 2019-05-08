@@ -130,22 +130,28 @@ class TestBadFiles(TestCli):
         with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
                 self.run_cli(["/no/such/file"])
-            mocked_exit.assert_called_once_with(
-                "Error loading '/no/such/file': No such file or directory")
+            mocked_exit.assert_called_once()
+            args = mocked_exit.call_args[0]
+            self.assertEqual(len(args), 1)
+            self.assertTrue(args[0].startswith("Error loading"))
 
     def test_decompress_missing(self):
         with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
                 self.run_cli(["-d", "/no/such/file.tsz"])
-            mocked_exit.assert_called_once_with(
-                "[Errno 2] No such file or directory: '/no/such/file.tsz'")
+            mocked_exit.assert_called_once()
+            args = mocked_exit.call_args[0]
+            self.assertEqual(len(args), 1)
+            self.assertTrue(args[0].startswith("[Errno 2] No such file or directory"))
 
     def test_list_missing(self):
         with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
                 self.run_cli(["-l", "/no/such/file.tsz"])
-            mocked_exit.assert_called_once_with(
-                "[Errno 2] No such file or directory: '/no/such/file.tsz'")
+            mocked_exit.assert_called_once()
+            args = mocked_exit.call_args[0]
+            self.assertEqual(len(args), 1)
+            self.assertTrue(args[0].startswith("[Errno 2] No such file or directory"))
 
 
 class TestCompressSemantics(TestCli):

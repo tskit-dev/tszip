@@ -205,10 +205,10 @@ class TestFormat(unittest.TestCase):
     def test_format_written(self):
         ts = msprime.simulate(10, random_seed=1)
         tszip.compress(ts, self.path)
-        store = zarr.ZipStore(self.path, mode='r')
-        root = zarr.group(store=store)
-        self.assertEqual(root.attrs["format_name"], compression.FORMAT_NAME)
-        self.assertEqual(root.attrs["format_version"], compression.FORMAT_VERSION)
+        with zarr.ZipStore(self.path, mode='r') as store:
+            root = zarr.group(store=store)
+            self.assertEqual(root.attrs["format_name"], compression.FORMAT_NAME)
+            self.assertEqual(root.attrs["format_version"], compression.FORMAT_VERSION)
 
     def write_file(self, attrs, path):
         with zarr.ZipStore(path, mode='w') as store:
@@ -273,10 +273,10 @@ class TestFileErrors(unittest.TestCase):
             tszip.decompress(path)
 
     def test_load_dir(self):
-        with self.assertRaises(IsADirectoryError):
+        with self.assertRaises(OSError):
             tszip.decompress(self.path.parent)
 
     def test_save_dir(self):
         ts = msprime.simulate(10, random_seed=1)
-        with self.assertRaises(IsADirectoryError):
+        with self.assertRaises(OSError):
             tszip.compress(ts, self.path.parent)

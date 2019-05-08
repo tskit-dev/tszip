@@ -74,14 +74,16 @@ def compress(ts, destination, compressor=None, variants_only=False):
     Compresses the specified tree sequence and writes it to the specified path.
     """
     logging.info("Compressing to {}".format(destination))
-    # Write the file into a temporary directory so that we can write the
-    # output atomically.
-    with tempfile.TemporaryDirectory() as tmpdir:
+    # Write the file into a temporary directory on the same file system so that
+    # we can write the output atomically.
+    destdir = os.path.dirname(os.path.abspath(destination))
+    with tempfile.TemporaryDirectory(dir=destdir) as tmpdir:
         filename = os.path.join(tmpdir, "tmp.trees.tgz")
+        logging.debug("Writing to temporary file {}".format(filename))
         with zarr.ZipStore(filename, mode='w') as store:
             root = zarr.group(store=store)
             compress_zarr(ts, root, compressor=compressor, variants_only=variants_only)
-        os.rename(filename, destination)
+        os.replace(filename, destination)
 
 
 class Column(object):
