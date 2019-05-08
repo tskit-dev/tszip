@@ -116,20 +116,22 @@ class Column(object):
 
 
 def compress_zarr(ts, root, compressor=None, variants_only=False):
-    tables = ts.dump_tables()
+
+    if variants_only:
+        logging.info("Using lossy variants-only compression")
+        # Reduce to site topology and quantise node times. Note that we will remove
+        # any sites, individuals and populations here that have no references.
+        ts = ts.simplify(reduce_to_site_topology=True)
+        tables = ts.tables
+        time = np.unique(tables.nodes.time)
+        node_time = np.searchsorted(time, tables.nodes.time)
+    else:
+        tables = ts.tables
+        node_time = tables.nodes.time
 
     coordinates = np.unique(np.hstack([
         [0, ts.sequence_length], tables.edges.left, tables.edges.right,
         tables.sites.position, tables.migrations.left, tables.migrations.right]))
-
-    if variants_only:
-        logging.info("Using lossy variants-only compression")
-        # Reduce to site topology and quantise node times.
-        tables.simplify(reduce_to_site_topology=True)
-        time = np.unique(tables.nodes.time)
-        node_time = np.searchsorted(time, tables.nodes.time)
-    else:
-        node_time = tables.nodes.time
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

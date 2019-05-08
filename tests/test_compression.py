@@ -26,6 +26,7 @@ import unittest
 import tempfile
 import pathlib
 
+import tskit
 import msprime
 import numpy as np
 import zarr
@@ -111,6 +112,46 @@ class RoundTripMixin(object):
         self.assertGreater(ts.num_trees, 2)
         self.verify(ts)
 
+    def test_small_msprime_individuals_metadata(self):
+        ts = msprime.simulate(10, recombination_rate=1, mutation_rate=2, random_seed=2)
+        self.assertGreater(ts.num_sites, 2)
+        self.assertGreater(ts.num_trees, 2)
+        tables = ts.dump_tables()
+        tables.nodes.clear()
+        for j, node in enumerate(ts.nodes()):
+            tables.individuals.add_row(flags=j, location=[j] * j, metadata=b"x" * j)
+            tables.nodes.add_row(
+                flags=node.flags, population=node.population, individual=j,
+                time=node.time, metadata=b"y" * j)
+        tables.populations.clear()
+        tables.populations.add_row(metadata=b"X" * 1024)
+        self.verify(tables.tree_sequence())
+
+    def test_small_msprime_complex_mutations(self):
+        ts = msprime.simulate(
+            10, recombination_rate=0.1, mutation_rate=0.2, random_seed=2, length=10)
+        tables = ts.dump_tables()
+        tables.sites.clear()
+        tables.mutations.clear()
+        for j, site in enumerate(ts.sites()):
+            tables.sites.add_row(
+                position=site.position, ancestral_state=j * "A",
+                metadata=j * b"x")
+            for mutation in site.mutations:
+                tables.mutations.add_row(
+                    mutation.site, node=mutation.node, derived_state=(j + 1) * "T",
+                    metadata=j * b"y")
+        self.verify(tables.tree_sequence())
+
+    def test_mutation_parent_example(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(position=0, ancestral_state="A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        tables.mutations.add_row(site=0, node=0, parent=0, derived_state="A")
+        self.verify(tables.tree_sequence())
+
 
 class TestGenotypeRoundTrip(unittest.TestCase, RoundTripMixin):
     """
@@ -128,6 +169,16 @@ class TestGenotypeRoundTrip(unittest.TestCase, RoundTripMixin):
             self.assertTrue(np.array_equal(var1.genotypes, var2.genotypes))
             self.assertEqual(var1.site.position, var2.site.position)
             self.assertEqual(var1.alleles, var2.alleles)
+        # Populations, individuals and sites should be untouched if there are no
+        # unreachable individuals.
+        t1 = ts.tables
+        t2 = other_ts.tables
+        self.assertEqual(t1.sequence_length, t2.sequence_length)
+        self.assertEqual(t1.populations, t2.populations)
+        self.assertEqual(t1.individuals, t2.individuals)
+        self.assertEqual(t1.sites, t2.sites)
+        # We should be adding an extra provenance record in here due to simplify.
+        self.assertEqual(len(t1.provenances), len(t2.provenances) - 1)
 
 
 class TestExactRoundTrip(unittest.TestCase, RoundTripMixin):
