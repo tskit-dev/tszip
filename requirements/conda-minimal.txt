@@ -2,5 +2,4 @@ nose
 msprime
 tskit
 zarr
-daiquiri
 humanize

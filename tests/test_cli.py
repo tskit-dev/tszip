@@ -366,24 +366,23 @@ class TestSetupLogging(unittest.TestCase):
     """
     Tests that setup logging has the desired effect.
     """
-
     def test_default(self):
         parser = cli.tszip_cli_parser()
         args = parser.parse_args(["afile"])
-        with mock.patch("daiquiri.setup") as mocked_setup:
+        with mock.patch("logging.basicConfig") as mocked_setup:
             cli.setup_logging(args)
-            mocked_setup.assert_called_once_with("WARN")
+            mocked_setup.assert_called_once_with(level="WARN", format=cli.log_format)
 
     def test_verbose(self):
         parser = cli.tszip_cli_parser()
         args = parser.parse_args(["afile", "-v"])
-        with mock.patch("daiquiri.setup") as mocked_setup:
+        with mock.patch("logging.basicConfig") as mocked_setup:
             cli.setup_logging(args)
-            mocked_setup.assert_called_once_with("INFO")
+            mocked_setup.assert_called_once_with(level="INFO", format=cli.log_format)
 
     def test_very_verbose(self):
         parser = cli.tszip_cli_parser()
         args = parser.parse_args(["afile", "-vv"])
-        with mock.patch("daiquiri.setup") as mocked_setup:
+        with mock.patch("logging.basicConfig") as mocked_setup:
             cli.setup_logging(args)
-            mocked_setup.assert_called_once_with("DEBUG")
+            mocked_setup.assert_called_once_with(level="DEBUG", format=cli.log_format)
