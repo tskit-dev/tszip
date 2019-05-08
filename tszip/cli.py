@@ -24,6 +24,8 @@ Command line interfaces to tszip.
 """
 import argparse
 import logging
+import pathlib
+import sys
 
 import daiquiri
 import tskit
@@ -31,6 +33,13 @@ import tskit
 import tszip
 
 logger = logging.getLogger(__name__)
+
+
+def exit(message):
+    """
+    Exit with the specified error message, setting error status.
+    """
+    sys.exit(message)
 
 
 def setup_logging(args):
@@ -59,6 +68,15 @@ def tszip_cli_parser():
             "Lossy compression; throws out information not needed to "
             "represent variants"))
     parser.add_argument(
+        "-S", "--suffix", default=".tsz",
+        help="Use suffix SUFFIX on compressed files")
+    parser.add_argument(
+        "-k", "--keep", action='store_true',
+        help="Keep (don't delete) input files")
+    parser.add_argument(
+        "-f", "--force", action='store_true',
+        help="Force overwrite of output file")
+    parser.add_argument(
         "-d", "--decompress", action='store_true',
         help="Decompress")
     parser.add_argument(
@@ -67,22 +85,46 @@ def tszip_cli_parser():
     return parser
 
 
+def remove_input(infile, args):
+    if not args.keep:
+        logger.info("Removing {}".format(infile))
+        infile.unlink()
+
+
+def check_output(outfile, args):
+    if outfile.exists():
+        if not args.force:
+            exit("{} already exists; use --force to overwrite".format(outfile))
+
+
 def run_compress(args):
     logger.info("Compressing {}".format(args.file))
-    ts = tskit.load(args.file)
-    outfile = args.file + ".zarr"
+    try:
+        ts = tskit.load(args.file)
+    except tskit.FileFormatError as ffe:
+        exit("Error loading '{}': {}".format(args.file, ffe))
+    logger.debug("Loaded tree sequence")
+    infile = pathlib.Path(args.file)
+    outfile = pathlib.Path(args.file + args.suffix)
+    check_output(outfile, args)
     tszip.compress(ts, outfile, variants_only=args.variants_only)
-    # TODO various gzip-like semantics with file
+    remove_input(infile, args)
 
 
 def run_decompress(args):
     logger.info("Decompressing {}".format(args.file))
-    if not args.file.endswith(".zarr"):
-        raise ValueError("Compressed file must have .zarr suffix")
-    ts = tszip.decompress(args.file)
-    outfile = args.file[:-5]
+    if not args.file.endswith(args.suffix):
+        raise ValueError("Compressed file must have {} suffix".format(args.suffix))
+    infile = pathlib.Path(args.file)
+    outfile = pathlib.Path(args.file[:-len(args.suffix)])
+    check_output(outfile, args)
+    try:
+        ts = tszip.decompress(args.file)
+    except OSError as ose:
+        exit(str(ose))
     logger.info("Writing to {}".format(outfile))
     ts.dump(outfile)
+    remove_input(infile, args)
 
 
 def run_list(args):
