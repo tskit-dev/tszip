@@ -61,7 +61,7 @@ def tszip_cli_parser():
         "-v", "--verbosity", action='count', default=0,
         help="Increase the verbosity")
     parser.add_argument(
-        "file", help="The file to operate on")
+        "files", nargs="+", help="The files to compress/decompress.")
     parser.add_argument(
         "--variants-only", action='store_true',
         help=(
@@ -76,10 +76,11 @@ def tszip_cli_parser():
     parser.add_argument(
         "-f", "--force", action='store_true',
         help="Force overwrite of output file")
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
         "-d", "--decompress", action='store_true',
         help="Decompress")
-    parser.add_argument(
+    group.add_argument(
         "-l", "--list", action='store_true',
         help="List contents of the file")
     return parser
@@ -94,41 +95,47 @@ def remove_input(infile, args):
 def check_output(outfile, args):
     if outfile.exists():
         if not args.force:
-            exit("{} already exists; use --force to overwrite".format(outfile))
+            exit("'{}' already exists; use --force to overwrite".format(outfile))
 
 
 def run_compress(args):
-    logger.info("Compressing {}".format(args.file))
-    try:
-        ts = tskit.load(args.file)
-    except tskit.FileFormatError as ffe:
-        exit("Error loading '{}': {}".format(args.file, ffe))
-    logger.debug("Loaded tree sequence")
-    infile = pathlib.Path(args.file)
-    outfile = pathlib.Path(args.file + args.suffix)
-    check_output(outfile, args)
-    tszip.compress(ts, outfile, variants_only=args.variants_only)
-    remove_input(infile, args)
+    for file_arg in args.files:
+        logger.info("Compressing {}".format(file_arg))
+        try:
+            ts = tskit.load(file_arg)
+        except tskit.FileFormatError as ffe:
+            exit("Error loading '{}': {}".format(file_arg, ffe))
+        logger.debug("Loaded tree sequence")
+        infile = pathlib.Path(file_arg)
+        outfile = pathlib.Path(file_arg + args.suffix)
+        check_output(outfile, args)
+        tszip.compress(ts, outfile, variants_only=args.variants_only)
+        remove_input(infile, args)
 
 
 def run_decompress(args):
-    logger.info("Decompressing {}".format(args.file))
-    if not args.file.endswith(args.suffix):
-        raise ValueError("Compressed file must have {} suffix".format(args.suffix))
-    infile = pathlib.Path(args.file)
-    outfile = pathlib.Path(args.file[:-len(args.suffix)])
-    check_output(outfile, args)
-    try:
-        ts = tszip.decompress(args.file)
-    except OSError as ose:
-        exit(str(ose))
-    logger.info("Writing to {}".format(outfile))
-    ts.dump(outfile)
-    remove_input(infile, args)
+    for file_arg in args.files:
+        logger.info("Decompressing {}".format(file_arg))
+        if not file_arg.endswith(args.suffix):
+            exit("Compressed file must have '{}' suffix".format(args.suffix))
+        infile = pathlib.Path(file_arg)
+        outfile = pathlib.Path(file_arg[:-len(args.suffix)])
+        check_output(outfile, args)
+        try:
+            ts = tszip.decompress(file_arg)
+        except OSError as ose:
+            exit(str(ose))
+        logger.info("Writing to {}".format(outfile))
+        ts.dump(outfile)
+        remove_input(infile, args)
 
 
 def run_list(args):
-    tszip.print_summary(args.file)
+    for file_arg in args.files:
+        try:
+            tszip.print_summary(file_arg)
+        except OSError as ose:
+            exit(str(ose))
 
 
 def tszip_main(arg_list=None):
