@@ -1,0 +1,20 @@
+environment:
+  matrix:
+    - PYTHON: "C:\\Miniconda37-x64"
+    - PYTHON: "C:\\Miniconda36-x64"
+
+init:
+  - cmd: ECHO Using %PYTHON%
+
+install:
+  - cmd: SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - cmd: conda config --add channels conda-forge
+  - cmd: conda install --yes --file=requirements\conda-minimal.txt
+  - cmd: conda info -a
+
+build_script:
+  - cmd: python setup.py build_ext --inplace
+  - cmd: nosetests -vs
+
+after_test:
+  - cmd: python setup.py bdist_wheel
