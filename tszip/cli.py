@@ -26,11 +26,13 @@ import argparse
 import logging
 import pathlib
 import sys
+import contextlib
 
 import daiquiri
 import tskit
 
 import tszip
+from . import exceptions
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +101,7 @@ def check_output(outfile, args):
 
 
 def run_compress(args):
+    setup_logging(args)
     for file_arg in args.files:
         logger.info("Compressing {}".format(file_arg))
         try:
@@ -113,7 +116,18 @@ def run_compress(args):
         remove_input(infile, args)
 
 
+@contextlib.contextmanager
+def check_load_errors(file_arg):
+    try:
+        yield
+    except OSError as ose:
+        exit(str(ose))
+    except exceptions.FileFormatError as ffe:
+        exit("Error reading '{}': {}".format(file_arg, ffe))
+
+
 def run_decompress(args):
+    setup_logging(args)
     for file_arg in args.files:
         logger.info("Decompressing {}".format(file_arg))
         if not file_arg.endswith(args.suffix):
@@ -121,10 +135,8 @@ def run_decompress(args):
         infile = pathlib.Path(file_arg)
         outfile = pathlib.Path(file_arg[:-len(args.suffix)])
         check_output(outfile, args)
-        try:
+        with check_load_errors(file_arg):
             ts = tszip.decompress(file_arg)
-        except OSError as ose:
-            exit(str(ose))
         logger.info("Writing to {}".format(outfile))
         ts.dump(outfile)
         remove_input(infile, args)
@@ -132,16 +144,13 @@ def run_decompress(args):
 
 def run_list(args):
     for file_arg in args.files:
-        try:
-            tszip.print_summary(file_arg)
-        except OSError as ose:
-            exit(str(ose))
+        with check_load_errors(file_arg):
+            tszip.print_summary(file_arg, args.verbosity)
 
 
 def tszip_main(arg_list=None):
     parser = tszip_cli_parser()
     args = parser.parse_args(arg_list)
-    setup_logging(args)
     if args.decompress:
         run_decompress(args)
     elif args.list:

@@ -222,6 +222,16 @@ class TestCompressSemantics(TestCli):
             mocked_exit.assert_called_once_with(
                 "'{}' already exists; use --force to overwrite".format(outpath))
 
+    def test_bad_file_format(self):
+        self.assertTrue(self.trees_path.exists())
+        with open(self.trees_path, "w") as f:
+            f.write("xxx")
+        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+            with self.assertRaises(TestException):
+                self.run_cli([str(self.trees_path)])
+            mocked_exit.assert_called_once_with(
+                "Error loading '{}': File not in KAS format".format(self.trees_path))
+
 
 class TestDecompressSemantics(TestCli):
     """
@@ -293,3 +303,87 @@ class TestDecompressSemantics(TestCli):
                 self.run_cli([str(self.compressed_path), "-d", "-S", "asdf"])
             mocked_exit.assert_called_once_with(
                 "Compressed file must have 'asdf' suffix")
+
+    def test_bad_file_format(self):
+        self.assertTrue(self.compressed_path.exists())
+        with open(self.compressed_path, "w") as f:
+            f.write("xxx")
+        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+            with self.assertRaises(TestException):
+                self.run_cli([str(self.compressed_path), "-d"])
+            mocked_exit.assert_called_once_with(
+                "Error reading '{}': File is not in tgzip format".format(
+                    self.compressed_path))
+
+
+class TestList(unittest.TestCase):
+    """
+    Tests that the --list option works as expected.
+
+    We don't need to mock out setup_logging here because it's not called for list.
+    """
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory(prefix="tszip_cli_")
+        self.trees_path = pathlib.Path(self.tmpdir.name) / "msprime.trees"
+        self.ts = msprime.simulate(10, mutation_rate=10, random_seed=1)
+        self.compressed_path = pathlib.Path(self.tmpdir.name) / "msprime.trees.tsz"
+        tszip.compress(self.ts, self.compressed_path)
+
+    def tearDown(self):
+        del self.tmpdir
+
+    def test_simple(self):
+        stdout, stderr = capture_output(
+            cli.tszip_main, ["--list", str(self.compressed_path)])
+        self.assertEqual(stderr, "")
+        lines = stdout.splitlines()
+        self.assertTrue(lines[0].startswith("File: {}".format(self.compressed_path)))
+        for line in lines:
+            self.assertGreater(len(line), 0)
+
+    def test_verbose(self):
+        stdout, stderr = capture_output(
+            cli.tszip_main, ["--list", "-v", str(self.compressed_path)])
+        self.assertEqual(stderr, "")
+        lines = stdout.splitlines()
+        self.assertTrue(lines[0].startswith("File: {}".format(self.compressed_path)))
+        for line in lines:
+            self.assertGreater(len(line), 0)
+
+    def test_bad_file_format(self):
+        self.assertTrue(self.compressed_path.exists())
+        with open(self.compressed_path, "w") as f:
+            f.write("xxx")
+        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+            with self.assertRaises(TestException):
+                cli.tszip_main([str(self.compressed_path), "-l"])
+            mocked_exit.assert_called_once_with(
+                "Error reading '{}': File is not in tgzip format".format(
+                    self.compressed_path))
+
+
+class TestSetupLogging(unittest.TestCase):
+    """
+    Tests that setup logging has the desired effect.
+    """
+
+    def test_default(self):
+        parser = cli.tszip_cli_parser()
+        args = parser.parse_args(["afile"])
+        with mock.patch("daiquiri.setup") as mocked_setup:
+            cli.setup_logging(args)
+            mocked_setup.assert_called_once_with("WARN")
+
+    def test_verbose(self):
+        parser = cli.tszip_cli_parser()
+        args = parser.parse_args(["afile", "-v"])
+        with mock.patch("daiquiri.setup") as mocked_setup:
+            cli.setup_logging(args)
+            mocked_setup.assert_called_once_with("INFO")
+
+    def test_very_verbose(self):
+        parser = cli.tszip_cli_parser()
+        args = parser.parse_args(["afile", "-vv"])
+        with mock.patch("daiquiri.setup") as mocked_setup:
+            cli.setup_logging(args)
+            mocked_setup.assert_called_once_with("DEBUG")

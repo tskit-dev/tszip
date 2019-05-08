@@ -304,17 +304,42 @@ def decompress(path):
     return tables.tree_sequence()
 
 
-def print_summary(path):
+def print_summary(path, verbosity=0):
+    arrays = []
 
     def visitor(array):
         if isinstance(array, zarr.core.Array):
-            # ratio = 0
-            # if array.nbytes > 0:
-            #     ratio = array.nbytes_stored / array.nbytes
-            print(
-                array.nbytes_stored, humanize.naturalsize(array.nbytes_stored),
-                array.name, sep="\t")
-            # print(array.info)
+            arrays.append(array)
 
     with load_zarr(path) as root:
         root.visitvalues(visitor)
+
+    arrays.sort(key=lambda x: x.nbytes_stored)
+    max_name_len = max(len(array.name) for array in arrays)
+    stored = [
+        humanize.naturalsize(array.nbytes_stored, binary=True) for array in arrays]
+    max_stored_len = max(len(size) for size in stored)
+    actual = [
+        humanize.naturalsize(array.nbytes, binary=True) for array in arrays]
+    max_actual_len = max(len(size) for size in actual)
+
+    line = "File: {}\t{}".format(
+        path,
+        humanize.naturalsize(os.path.getsize(path), binary=True))
+    print(line)
+    fmt = "{:<{}} {:<{}}\t{:<{}}\t{}"
+    line = fmt.format(
+        "name", max_name_len, "stored", max_stored_len, "actual", max_actual_len,
+        "ratio")
+    print(line)
+    for array, stored, actual in zip(arrays, stored, actual):
+        ratio = 0
+        if array.nbytes > 0:
+            ratio = array.nbytes_stored / array.nbytes
+        line = fmt.format(
+            array.name, max_name_len, stored, max_stored_len, actual, max_actual_len,
+            "{:.2f}".format(ratio))
+        print(line)
+        if verbosity > 0:
+            for line in str(array.info).splitlines():
+                print("\t", line)
