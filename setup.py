@@ -14,7 +14,6 @@ setup(
     setup_requires=['setuptools_scm'],
     install_requires=[
         "numpy",
-        "daiquiri",
         "humanize",
         "tskit",
         "numcodecs",

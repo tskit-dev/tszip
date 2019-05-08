@@ -28,13 +28,13 @@ import pathlib
 import sys
 import contextlib
 
-import daiquiri
 import tskit
 
 import tszip
 from . import exceptions
 
 logger = logging.getLogger(__name__)
+log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 
 def exit(message):
@@ -50,7 +50,7 @@ def setup_logging(args):
         log_level = "INFO"
     if args.verbosity > 1:
         log_level = "DEBUG"
-    daiquiri.setup(log_level)
+    logging.basicConfig(level=log_level, format=log_format)
 
 
 def tszip_cli_parser():

@@ -1,6 +1,7 @@
 environment:
   matrix:
-    - PYTHON: "C:\\Miniconda37-x64"
+    # Disabled 2019-05-08 because of numpy problem.
+    # - PYTHON: "C:\\Miniconda37-x64"
     - PYTHON: "C:\\Miniconda36-x64"
 
 init:
