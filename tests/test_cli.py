@@ -162,7 +162,7 @@ class TestCompressSemantics(TestCli):
         self.tmpdir = tempfile.TemporaryDirectory(prefix="tszip_cli_")
         self.trees_path = pathlib.Path(self.tmpdir.name) / "msprime.trees"
         self.ts = msprime.simulate(10, mutation_rate=10, random_seed=1)
-        self.ts.dump(self.trees_path)
+        self.ts.dump(str(self.trees_path))
 
     def tearDown(self):
         del self.tmpdir
@@ -230,7 +230,7 @@ class TestCompressSemantics(TestCli):
 
     def test_bad_file_format(self):
         self.assertTrue(self.trees_path.exists())
-        with open(self.trees_path, "w") as f:
+        with open(str(self.trees_path), "w") as f:
             f.write("xxx")
         with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
@@ -259,7 +259,7 @@ class TestDecompressSemantics(TestCli):
         self.assertFalse(self.compressed_path.exists())
         outpath = self.trees_path
         self.assertTrue(outpath.exists())
-        ts = tskit.load(outpath)
+        ts = tskit.load(str(outpath))
         self.assertEqual(ts.tables, self.ts.tables)
 
     def test_suffix(self):
@@ -271,7 +271,7 @@ class TestDecompressSemantics(TestCli):
         self.assertFalse(self.compressed_path.exists())
         outpath = self.trees_path
         self.assertTrue(outpath.exists())
-        ts = tskit.load(outpath)
+        ts = tskit.load(str(outpath))
         self.assertEqual(ts.tables, self.ts.tables)
 
     def test_keep(self):
@@ -280,7 +280,7 @@ class TestDecompressSemantics(TestCli):
         self.assertTrue(self.compressed_path.exists())
         outpath = self.trees_path
         self.assertTrue(outpath.exists())
-        ts = tskit.load(outpath)
+        ts = tskit.load(str(outpath))
         self.assertEqual(ts.tables, self.ts.tables)
 
     def test_overwrite(self):
@@ -290,7 +290,7 @@ class TestDecompressSemantics(TestCli):
         self.run_cli([str(self.compressed_path), "-df"])
         self.assertFalse(self.compressed_path.exists())
         self.assertTrue(outpath.exists())
-        ts = tskit.load(outpath)
+        ts = tskit.load(str(outpath))
         self.assertEqual(ts.tables, self.ts.tables)
 
     def test_no_overwrite(self):
@@ -312,7 +312,7 @@ class TestDecompressSemantics(TestCli):
 
     def test_bad_file_format(self):
         self.assertTrue(self.compressed_path.exists())
-        with open(self.compressed_path, "w") as f:
+        with open(str(self.compressed_path), "w") as f:
             f.write("xxx")
         with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
@@ -358,7 +358,7 @@ class TestList(unittest.TestCase):
 
     def test_bad_file_format(self):
         self.assertTrue(self.compressed_path.exists())
-        with open(self.compressed_path, "w") as f:
+        with open(str(self.compressed_path), "w") as f:
             f.write("xxx")
         with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):

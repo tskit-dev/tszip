@@ -73,6 +73,7 @@ def compress(ts, destination, compressor=None, variants_only=False):
     """
     Compresses the specified tree sequence and writes it to the specified path.
     """
+    destination = str(destination)
     logging.info("Compressing to {}".format(destination))
     # Write the file into a temporary directory on the same file system so that
     # we can write the output atomically.
@@ -230,6 +231,7 @@ def check_format(root):
 
 @contextlib.contextmanager
 def load_zarr(path):
+    path = str(path)
     try:
         store = zarr.ZipStore(path, mode='r')
     except zipfile.BadZipFile as bzf:
