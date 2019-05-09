@@ -78,7 +78,7 @@ def compress(ts, destination, variants_only=False):
     # Write the file into a temporary directory on the same file system so that
     # we can write the output atomically.
     destdir = os.path.dirname(os.path.abspath(destination))
-    with tempfile.TemporaryDirectory(dir=destdir) as tmpdir:
+    with tempfile.TemporaryDirectory(dir=destdir, prefix=".tszip_work_") as tmpdir:
         filename = os.path.join(tmpdir, "tmp.trees.tgz")
         logging.debug("Writing to temporary file {}".format(filename))
         with zarr.ZipStore(filename, mode='w') as store:
