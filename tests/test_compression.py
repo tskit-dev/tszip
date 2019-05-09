@@ -205,13 +205,13 @@ class TestFormat(unittest.TestCase):
     def test_format_written(self):
         ts = msprime.simulate(10, random_seed=1)
         tszip.compress(ts, self.path)
-        with zarr.ZipStore(self.path, mode='r') as store:
+        with zarr.ZipStore(str(self.path), mode='r') as store:
             root = zarr.group(store=store)
             self.assertEqual(root.attrs["format_name"], compression.FORMAT_NAME)
             self.assertEqual(root.attrs["format_version"], compression.FORMAT_VERSION)
 
     def write_file(self, attrs, path):
-        with zarr.ZipStore(path, mode='w') as store:
+        with zarr.ZipStore(str(path), mode='w') as store:
             root = zarr.group(store=store)
             root.attrs.update(attrs)
 
@@ -249,7 +249,7 @@ class TestFormat(unittest.TestCase):
 
     def test_wrong_format(self):
         for contents in ["", "1234", "X" * 1024]:
-            with open(self.path, "w") as f:
+            with open(str(self.path), "w") as f:
                 f.write(contents)
             with self.assertRaises(exceptions.FileFormatError):
                 tszip.decompress(self.path)

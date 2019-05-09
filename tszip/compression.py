@@ -69,20 +69,21 @@ def minimal_dtype(array):
     return dtype
 
 
-def compress(ts, destination, compressor=None, variants_only=False):
+def compress(ts, destination, variants_only=False):
     """
     Compresses the specified tree sequence and writes it to the specified path.
     """
+    destination = str(destination)
     logging.info("Compressing to {}".format(destination))
     # Write the file into a temporary directory on the same file system so that
     # we can write the output atomically.
     destdir = os.path.dirname(os.path.abspath(destination))
-    with tempfile.TemporaryDirectory(dir=destdir) as tmpdir:
+    with tempfile.TemporaryDirectory(dir=destdir, prefix=".tszip_work_") as tmpdir:
         filename = os.path.join(tmpdir, "tmp.trees.tgz")
         logging.debug("Writing to temporary file {}".format(filename))
         with zarr.ZipStore(filename, mode='w') as store:
             root = zarr.group(store=store)
-            compress_zarr(ts, root, compressor=compressor, variants_only=variants_only)
+            compress_zarr(ts, root, variants_only=variants_only)
         os.replace(filename, destination)
 
 
@@ -117,7 +118,7 @@ class Column(object):
             ratio))
 
 
-def compress_zarr(ts, root, compressor=None, variants_only=False):
+def compress_zarr(ts, root, variants_only=False):
 
     if variants_only:
         logging.info("Using lossy variants-only compression")
@@ -201,9 +202,13 @@ def compress_zarr(ts, root, compressor=None, variants_only=False):
         Column("provenances/record", tables.provenances.record),
         Column("provenances/record_offset", tables.provenances.record_offset),
     ]
-    if compressor is None:
-        compressor = numcodecs.Blosc(
-            cname='zstd', clevel=9, shuffle=numcodecs.Blosc.SHUFFLE)
+
+    # Note: we're not providing any options to set this here because Blosc+Zstd seems to
+    # have a clear advantage in compression performance and speed. There is very little
+    # difference between compression level 6 and 9, and it's extremely fast in any case
+    # so there's no point in adding complexity. The shuffle filter in particular makes
+    # big difference.
+    compressor = numcodecs.Blosc(cname='zstd', clevel=9, shuffle=numcodecs.Blosc.SHUFFLE)
     for column in columns:
         column.compress(root, compressor)
 
@@ -230,6 +235,7 @@ def check_format(root):
 
 @contextlib.contextmanager
 def load_zarr(path):
+    path = str(path)
     try:
         store = zarr.ZipStore(path, mode='r')
     except zipfile.BadZipFile as bzf:
