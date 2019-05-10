@@ -17,6 +17,14 @@ import sys
 import pkg_resources
 sys.path.insert(0, os.path.abspath('../'))
 
+# We don't need to import any of these to build the docs.
+autodoc_mock_imports = [
+    "numpy",
+    "humanize",
+    "tskit",
+    "numcodecs",
+    "zarr",
+]
 
 # -- Project information -----------------------------------------------------
 
