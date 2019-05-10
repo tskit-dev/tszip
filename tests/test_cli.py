@@ -115,8 +115,15 @@ class TestCli(unittest.TestCase):
     # Need to mock out setup_logging here or we spew logging to the console
     # in later tests.
     @mock.patch("tszip.cli.setup_logging")
-    def run_cli(self, command, mock_setup_logging):
+    def run_tszip(self, command, mock_setup_logging):
         stdout, stderr = capture_output(cli.tszip_main, command)
+        self.assertEqual(stderr, "")
+        self.assertEqual(stdout, "")
+        self.assertTrue(mock_setup_logging.called)
+
+    @mock.patch("tszip.cli.setup_logging")
+    def run_tsunzip(self, command, mock_setup_logging):
+        stdout, stderr = capture_output(cli.tsunzip_main, command)
         self.assertEqual(stderr, "")
         self.assertEqual(stdout, "")
         self.assertTrue(mock_setup_logging.called)
@@ -127,27 +134,27 @@ class TestBadFiles(TestCli):
     Tests that we deal with IO errors appropriately.
     """
     def test_compress_missing(self):
-        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
-                self.run_cli(["/no/such/file"])
+                self.run_tszip(["/no/such/file"])
             mocked_exit.assert_called_once()
             args = mocked_exit.call_args[0]
             self.assertEqual(len(args), 1)
             self.assertTrue(args[0].startswith("Error loading"))
 
     def test_decompress_missing(self):
-        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
-                self.run_cli(["-d", "/no/such/file.tsz"])
+                self.run_tszip(["-d", "/no/such/file.tsz"])
             mocked_exit.assert_called_once()
             args = mocked_exit.call_args[0]
             self.assertEqual(len(args), 1)
             self.assertTrue(args[0].startswith("[Errno 2] No such file or directory"))
 
     def test_list_missing(self):
-        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
-                self.run_cli(["-l", "/no/such/file.tsz"])
+                self.run_tszip(["-l", "/no/such/file.tsz"])
             mocked_exit.assert_called_once()
             args = mocked_exit.call_args[0]
             self.assertEqual(len(args), 1)
@@ -169,7 +176,7 @@ class TestCompressSemantics(TestCli):
 
     def test_simple(self):
         self.assertTrue(self.trees_path.exists())
-        self.run_cli([str(self.trees_path)])
+        self.run_tszip([str(self.trees_path)])
         self.assertFalse(self.trees_path.exists())
         outpath = pathlib.Path(str(self.trees_path) + ".tsz")
         self.assertTrue(outpath.exists())
@@ -178,7 +185,7 @@ class TestCompressSemantics(TestCli):
 
     def test_suffix(self):
         self.assertTrue(self.trees_path.exists())
-        self.run_cli([str(self.trees_path), "-S", ".XYZasdf"])
+        self.run_tszip([str(self.trees_path), "-S", ".XYZasdf"])
         self.assertFalse(self.trees_path.exists())
         outpath = pathlib.Path(str(self.trees_path) + ".XYZasdf")
         self.assertTrue(outpath.exists())
@@ -187,7 +194,7 @@ class TestCompressSemantics(TestCli):
 
     def test_variants_only(self):
         self.assertTrue(self.trees_path.exists())
-        self.run_cli([str(self.trees_path), "--variants-only"])
+        self.run_tszip([str(self.trees_path), "--variants-only"])
         self.assertFalse(self.trees_path.exists())
         outpath = pathlib.Path(str(self.trees_path) + ".tsz")
         self.assertTrue(outpath.exists())
@@ -199,7 +206,7 @@ class TestCompressSemantics(TestCli):
 
     def test_keep(self):
         self.assertTrue(self.trees_path.exists())
-        self.run_cli([str(self.trees_path), "--keep"])
+        self.run_tszip([str(self.trees_path), "--keep"])
         self.assertTrue(self.trees_path.exists())
         outpath = pathlib.Path(str(self.trees_path) + ".tsz")
         self.assertTrue(outpath.exists())
@@ -211,7 +218,7 @@ class TestCompressSemantics(TestCli):
         outpath = pathlib.Path(str(self.trees_path) + ".tsz")
         outpath.touch()
         self.assertTrue(self.trees_path.exists())
-        self.run_cli([str(self.trees_path), "--force"])
+        self.run_tszip([str(self.trees_path), "--force"])
         self.assertFalse(self.trees_path.exists())
         self.assertTrue(outpath.exists())
         ts = tszip.decompress(outpath)
@@ -222,9 +229,9 @@ class TestCompressSemantics(TestCli):
         outpath = pathlib.Path(str(self.trees_path) + ".tsz")
         outpath.touch()
         self.assertTrue(self.trees_path.exists())
-        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
-                self.run_cli([str(self.trees_path)])
+                self.run_tszip([str(self.trees_path)])
             mocked_exit.assert_called_once_with(
                 "'{}' already exists; use --force to overwrite".format(outpath))
 
@@ -232,14 +239,14 @@ class TestCompressSemantics(TestCli):
         self.assertTrue(self.trees_path.exists())
         with open(str(self.trees_path), "w") as f:
             f.write("xxx")
-        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
-                self.run_cli([str(self.trees_path)])
+                self.run_tszip([str(self.trees_path)])
             mocked_exit.assert_called_once_with(
                 "Error loading '{}': File not in KAS format".format(self.trees_path))
 
 
-class TestDecompressSemantics(TestCli):
+class DecompressSemanticsMixin(object):
     """
     Tests that the decompress semantics of the CLI work as expected.
     """
@@ -255,7 +262,7 @@ class TestDecompressSemantics(TestCli):
 
     def test_simple(self):
         self.assertTrue(self.compressed_path.exists())
-        self.run_cli([str(self.compressed_path), "--decompress"])
+        self.run_decompress([str(self.compressed_path)])
         self.assertFalse(self.compressed_path.exists())
         outpath = self.trees_path
         self.assertTrue(outpath.exists())
@@ -267,7 +274,7 @@ class TestDecompressSemantics(TestCli):
         self.compressed_path = self.compressed_path.with_suffix(suffix)
         tszip.compress(self.ts, self.compressed_path)
         self.assertTrue(self.compressed_path.exists())
-        self.run_cli([str(self.compressed_path), "-d", "-S", suffix])
+        self.run_decompress([str(self.compressed_path), "-S", suffix])
         self.assertFalse(self.compressed_path.exists())
         outpath = self.trees_path
         self.assertTrue(outpath.exists())
@@ -276,7 +283,7 @@ class TestDecompressSemantics(TestCli):
 
     def test_keep(self):
         self.assertTrue(self.compressed_path.exists())
-        self.run_cli([str(self.compressed_path), "--decompress", "--keep"])
+        self.run_decompress([str(self.compressed_path), "--keep"])
         self.assertTrue(self.compressed_path.exists())
         outpath = self.trees_path
         self.assertTrue(outpath.exists())
@@ -287,7 +294,7 @@ class TestDecompressSemantics(TestCli):
         self.assertTrue(self.compressed_path.exists())
         outpath = self.trees_path
         outpath.touch()
-        self.run_cli([str(self.compressed_path), "-df"])
+        self.run_decompress([str(self.compressed_path), "-f"])
         self.assertFalse(self.compressed_path.exists())
         self.assertTrue(outpath.exists())
         ts = tskit.load(str(outpath))
@@ -297,16 +304,16 @@ class TestDecompressSemantics(TestCli):
         self.assertTrue(self.compressed_path.exists())
         outpath = self.trees_path
         outpath.touch()
-        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
-                self.run_cli([str(self.compressed_path), "-d"])
+                self.run_decompress([str(self.compressed_path)])
             mocked_exit.assert_called_once_with(
                 "'{}' already exists; use --force to overwrite".format(outpath))
 
     def test_decompress_bad_suffix(self):
-        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
-                self.run_cli([str(self.compressed_path), "-d", "-S", "asdf"])
+                self.run_decompress([str(self.compressed_path), "-S", "asdf"])
             mocked_exit.assert_called_once_with(
                 "Compressed file must have 'asdf' suffix")
 
@@ -314,12 +321,22 @@ class TestDecompressSemantics(TestCli):
         self.assertTrue(self.compressed_path.exists())
         with open(str(self.compressed_path), "w") as f:
             f.write("xxx")
-        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
-                self.run_cli([str(self.compressed_path), "-d"])
+                self.run_decompress([str(self.compressed_path)])
             mocked_exit.assert_called_once_with(
                 "Error reading '{}': File is not in tgzip format".format(
                     self.compressed_path))
+
+
+class TestDecompressSemanticsTszip(DecompressSemanticsMixin, TestCli):
+    def run_decompress(self, args):
+        self.run_tszip(["-d"] + args)
+
+
+class TestDecompressSemanticsTsunzip(DecompressSemanticsMixin, TestCli):
+    def run_decompress(self, args):
+        self.run_tsunzip(args)
 
 
 class TestList(unittest.TestCase):
@@ -360,7 +377,7 @@ class TestList(unittest.TestCase):
         self.assertTrue(self.compressed_path.exists())
         with open(str(self.compressed_path), "w") as f:
             f.write("xxx")
-        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
                 cli.tszip_main([str(self.compressed_path), "-l"])
             mocked_exit.assert_called_once_with(

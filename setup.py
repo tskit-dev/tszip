@@ -43,7 +43,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'tszip=tszip.__main__:main',
+            'tszip=tszip.cli:tszip_main',
+            'tsunzip=tszip.cli:tsunzip_main',
         ]
     },
     use_scm_version={"write_to": "tszip/_version.py"},

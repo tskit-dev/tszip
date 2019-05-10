@@ -34,6 +34,7 @@ import zarr
 import tszip
 import tszip.compression as compression
 import tszip.exceptions as exceptions
+import tszip.provenance as provenance
 
 
 class TestMinimalDtype(unittest.TestCase):
@@ -190,7 +191,7 @@ class TestExactRoundTrip(unittest.TestCase, RoundTripMixin):
         self.assertEqual(ts.tables, other_ts.tables)
 
 
-class TestFormat(unittest.TestCase):
+class TestMetadata(unittest.TestCase):
     """
     Tests that we correctly write the format information to the file and
     that we read it also.
@@ -209,6 +210,16 @@ class TestFormat(unittest.TestCase):
             root = zarr.group(store=store)
             self.assertEqual(root.attrs["format_name"], compression.FORMAT_NAME)
             self.assertEqual(root.attrs["format_version"], compression.FORMAT_VERSION)
+
+    def test_provenance(self):
+        ts = msprime.simulate(10, random_seed=1)
+        for variants_only in [True, False]:
+            tszip.compress(ts, self.path, variants_only=variants_only)
+            with zarr.ZipStore(str(self.path), mode='r') as store:
+                root = zarr.group(store=store)
+                self.assertEqual(
+                    root.attrs["provenance"],
+                    provenance.get_provenance_dict({"variants_only": variants_only}))
 
     def write_file(self, attrs, path):
         with zarr.ZipStore(str(path), mode='w') as store:

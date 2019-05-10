@@ -29,6 +29,7 @@ import contextlib
 import zipfile
 import tempfile
 import os.path
+import json
 
 import numcodecs
 import zarr
@@ -37,6 +38,7 @@ import tskit
 import humanize
 
 from . import exceptions
+from . import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +122,8 @@ class Column(object):
 
 def compress_zarr(ts, root, variants_only=False):
 
+    provenance_dict = provenance.get_provenance_dict({"variants_only": variants_only})
+
     if variants_only:
         logging.info("Using lossy variants-only compression")
         # Reduce to site topology and quantise node times. Note that we will remove
@@ -143,6 +147,7 @@ def compress_zarr(ts, root, variants_only=False):
         root.attrs["format_name"] = FORMAT_NAME
         root.attrs["format_version"] = FORMAT_VERSION
         root.attrs["sequence_length"] = tables.sequence_length
+        root.attrs["provenance"] = provenance_dict
 
     columns = [
         Column("coordinates", coordinates),
@@ -337,6 +342,11 @@ def print_summary(path, verbosity=0):
         path,
         humanize.naturalsize(os.path.getsize(path), binary=True))
     print(line)
+    if verbosity > 0:
+        print("format_version:", root.attrs["format_version"])
+        prov = root.attrs["provenance"]
+        print("provenance: ", end="")
+        print(json.dumps(prov, indent=4, sort_keys=True))
     fmt = "{:<{}} {:<{}}\t{:<{}}\t{}"
     line = fmt.format(
         "name", max_name_len, "stored", max_stored_len, "actual", max_actual_len,

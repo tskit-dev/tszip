@@ -41,7 +41,7 @@ def exit(message):
     """
     Exit with the specified error message, setting error status.
     """
-    sys.exit(message)
+    sys.exit("{}: {}".format(sys.argv[0], message))
 
 
 def setup_logging(args):
@@ -148,12 +148,23 @@ def run_list(args):
             tszip.print_summary(file_arg, args.verbosity)
 
 
-def tszip_main(arg_list=None):
-    parser = tszip_cli_parser()
-    args = parser.parse_args(arg_list)
+def main(args):
     if args.decompress:
         run_decompress(args)
     elif args.list:
         run_list(args)
     else:
         run_compress(args)
+
+
+def tszip_main(arg_list=None):
+    parser = tszip_cli_parser()
+    args = parser.parse_args(arg_list)
+    main(args)
+
+
+def tsunzip_main(arg_list=None):
+    parser = tszip_cli_parser()
+    args = parser.parse_args(arg_list)
+    args.decompress = True
+    main(args)
