@@ -20,13 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-__version__ = "undefined"
-try:
-    from . import _version
-    __version__ = _version.version
-except ImportError:
-    pass
-
 from .compression import compress  # NOQA
 from .compression import decompress  # NOQA
 from .compression import print_summary  # NOQA
+
+from .provenance import __version__  # NOQA
