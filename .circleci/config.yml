@@ -24,6 +24,8 @@ jobs:
       - run:
           name: Run Python tests 
           command: |
+            # Run setup.py so that the version is defined
+            python3 setup.py build
             nosetests -v --with-coverage --cover-package tszip \
               --cover-branches --cover-erase --cover-xml \
               --cover-inclusive tests
