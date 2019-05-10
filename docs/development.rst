@@ -6,14 +6,14 @@ Development
 
 If you would like to add some features to ``tszip``, please read the
 following. If you think there is anything missing,
-please open an `issue <http://github.com/tszip-dev/tszip/issues>`_ or
-`pull request <http://github.com/tszip-dev/tszip/pulls>`_ on GitHub!
+please open an `issue <http://github.com/tskit-dev/tszip/issues>`_ or
+`pull request <http://github.com/tskit-dev/tszip/pulls>`_ on GitHub!
 
 **********
 Quickstart
 **********
 
-- Make a fork of the tszip repo on `GitHub <http://github.com/tszip-dev/tszip>`_
+- Make a fork of the tszip repo on `GitHub <http://github.com/tskit-dev/tszip>`_
 - Clone your fork into a local directory::
 
   $ git clone git@github.com:YOUR_GITHUB/tszip.git

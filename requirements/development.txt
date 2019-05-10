@@ -6,6 +6,7 @@ sphinx
 sphinx-argparse
 sphinx_rtd_theme
 sphinx-issues
+setuptools_scm
 tskit
 zarr
 msprime
