@@ -133,6 +133,17 @@ class TestBadFiles(TestCli):
     """
     Tests that we deal with IO errors appropriately.
     """
+    def test_sys_exit(self):
+        # We test for cli.exit elsewhere as it's easier, but test that sys.exit
+        # is called here, so we get coverage.
+        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+            with self.assertRaises(TestException):
+                self.run_tszip(["/no/such/file"])
+            mocked_exit.assert_called_once()
+            args = mocked_exit.call_args[0]
+            self.assertEqual(len(args), 1)
+            self.assertIn("Error loading", args[0])
+
     def test_compress_missing(self):
         with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
