@@ -76,7 +76,6 @@ def compress(ts, destination, variants_only=False):
     Compresses the specified tree sequence and writes it to the specified path.
     """
     destination = str(destination)
-    logging.info("Compressing to {}".format(destination))
     # Write the file into a temporary directory on the same file system so that
     # we can write the output atomically.
     destdir = os.path.dirname(os.path.abspath(destination))
@@ -87,6 +86,7 @@ def compress(ts, destination, variants_only=False):
             root = zarr.group(store=store)
             compress_zarr(ts, root, variants_only=variants_only)
         os.replace(filename, destination)
+    logging.info("Wrote {}".format(destination))
 
 
 class Column(object):

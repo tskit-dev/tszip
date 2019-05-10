@@ -34,7 +34,7 @@ import tszip
 from . import exceptions
 
 logger = logging.getLogger(__name__)
-log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+log_format = '%(asctime)s %(levelname)s %(message)s'
 
 
 def exit(message):
@@ -137,8 +137,8 @@ def run_decompress(args):
         check_output(outfile, args)
         with check_load_errors(file_arg):
             ts = tszip.decompress(file_arg)
-        logger.info("Writing to {}".format(outfile))
         ts.dump(str(outfile))
+        logger.info("Wrote {}".format(outfile))
         remove_input(infile, args)
 
 
