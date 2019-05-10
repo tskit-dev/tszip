@@ -71,12 +71,21 @@ def minimal_dtype(array):
     return dtype
 
 
-def compress(ts, destination, variants_only=False):
+def compress(ts, path, variants_only=False):
     """
     Compresses the specified tree sequence and writes it to the specified path.
+    By default, fully lossless compression is used so that tree sequences are
+    identical before and after compression. By specifying the ``variants_only``
+    option, a lossy compression can be used, which discards any information
+    that is not needed to represent the variants (which are stored losslessly).
+
+    :param tskit.TreeSequence ts: The input tree sequence.
+    :param str destination: The string or :class:`pathlib.Path` instance describing
+        the location of the compressed file.
+    :param bool variants_only: If True, discard all information not necessary
+        to represent the variants in the input file.
     """
-    destination = str(destination)
-    logging.info("Compressing to {}".format(destination))
+    destination = str(path)
     # Write the file into a temporary directory on the same file system so that
     # we can write the output atomically.
     destdir = os.path.dirname(os.path.abspath(destination))
@@ -87,6 +96,21 @@ def compress(ts, destination, variants_only=False):
             root = zarr.group(store=store)
             compress_zarr(ts, root, variants_only=variants_only)
         os.replace(filename, destination)
+    logging.info("Wrote {}".format(destination))
+
+
+def decompress(path):
+    """
+    Decompresses the tszip compressed file and returns a tskit tree sequence
+    instance.
+
+    :param str path: The location of the tszip compressed file to load.
+    :rtype: tskit.TreeSequence
+    :return: A :class:`tskit.TreeSequence` instance corresponding to the
+        the specified file.
+    """
+    with load_zarr(path) as root:
+        return decompress_zarr(root)
 
 
 class Column(object):
@@ -253,68 +277,64 @@ def load_zarr(path):
         store.close()
 
 
-def decompress(path):
-    """
-    Returns a decompressed tskit tree sequence read from the specified path.
-    """
-    with load_zarr(path) as root:
-        tables = tskit.TableCollection(root.attrs["sequence_length"])
-        coordinates = root["coordinates"][:]
+def decompress_zarr(root):
+    tables = tskit.TableCollection(root.attrs["sequence_length"])
+    coordinates = root["coordinates"][:]
 
-        tables.individuals.set_columns(
-            flags=root["individuals/flags"],
-            location=root["individuals/location"],
-            location_offset=root["individuals/location_offset"],
-            metadata=root["individuals/metadata"],
-            metadata_offset=root["individuals/metadata_offset"])
+    tables.individuals.set_columns(
+        flags=root["individuals/flags"],
+        location=root["individuals/location"],
+        location_offset=root["individuals/location_offset"],
+        metadata=root["individuals/metadata"],
+        metadata_offset=root["individuals/metadata_offset"])
 
-        tables.nodes.set_columns(
-            flags=root["nodes/flags"],
-            time=root["nodes/time"],
-            population=root["nodes/population"],
-            individual=root["nodes/individual"],
-            metadata=root["nodes/metadata"],
-            metadata_offset=root["nodes/metadata_offset"])
+    tables.nodes.set_columns(
+        flags=root["nodes/flags"],
+        time=root["nodes/time"],
+        population=root["nodes/population"],
+        individual=root["nodes/individual"],
+        metadata=root["nodes/metadata"],
+        metadata_offset=root["nodes/metadata_offset"])
 
-        tables.edges.set_columns(
-            left=coordinates[root["edges/left"]],
-            right=coordinates[root["edges/right"]],
-            parent=root["edges/parent"],
-            child=root["edges/child"])
+    tables.edges.set_columns(
+        left=coordinates[root["edges/left"]],
+        right=coordinates[root["edges/right"]],
+        parent=root["edges/parent"],
+        child=root["edges/child"])
 
-        tables.migrations.set_columns(
-            left=coordinates[root["migrations/left"]],
-            right=coordinates[root["migrations/right"]],
-            node=root["migrations/node"],
-            source=root["migrations/source"],
-            dest=root["migrations/dest"],
-            time=root["migrations/time"])
+    tables.migrations.set_columns(
+        left=coordinates[root["migrations/left"]],
+        right=coordinates[root["migrations/right"]],
+        node=root["migrations/node"],
+        source=root["migrations/source"],
+        dest=root["migrations/dest"],
+        time=root["migrations/time"])
 
-        tables.sites.set_columns(
-            position=coordinates[root["sites/position"]],
-            ancestral_state=root["sites/ancestral_state"],
-            ancestral_state_offset=root["sites/ancestral_state_offset"],
-            metadata=root["sites/metadata"],
-            metadata_offset=root["sites/metadata_offset"])
+    tables.sites.set_columns(
+        position=coordinates[root["sites/position"]],
+        ancestral_state=root["sites/ancestral_state"],
+        ancestral_state_offset=root["sites/ancestral_state_offset"],
+        metadata=root["sites/metadata"],
+        metadata_offset=root["sites/metadata_offset"])
 
-        tables.mutations.set_columns(
-            site=root["mutations/site"],
-            node=root["mutations/node"],
-            parent=root["mutations/parent"],
-            derived_state=root["mutations/derived_state"],
-            derived_state_offset=root["mutations/derived_state_offset"],
-            metadata=root["mutations/metadata"],
-            metadata_offset=root["mutations/metadata_offset"])
+    tables.mutations.set_columns(
+        site=root["mutations/site"],
+        node=root["mutations/node"],
+        parent=root["mutations/parent"],
+        derived_state=root["mutations/derived_state"],
+        derived_state_offset=root["mutations/derived_state_offset"],
+        metadata=root["mutations/metadata"],
+        metadata_offset=root["mutations/metadata_offset"])
 
-        tables.populations.set_columns(
-            metadata=root["populations/metadata"],
-            metadata_offset=root["populations/metadata_offset"])
+    tables.populations.set_columns(
+        metadata=root["populations/metadata"],
+        metadata_offset=root["populations/metadata_offset"])
 
-        tables.provenances.set_columns(
-            timestamp=root["provenances/timestamp"],
-            timestamp_offset=root["provenances/timestamp_offset"],
-            record=root["provenances/record"],
-            record_offset=root["provenances/record_offset"])
+    tables.provenances.set_columns(
+        timestamp=root["provenances/timestamp"],
+        timestamp_offset=root["provenances/timestamp_offset"],
+        record=root["provenances/record"],
+        record_offset=root["provenances/record_offset"])
 
     return tables.tree_sequence()
 
