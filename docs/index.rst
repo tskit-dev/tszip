@@ -10,6 +10,12 @@ Welcome to tszip's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   introduction
+   installation
+   python-api
+   cli
+   development
+   changelog
 
 
 Indices and tables
