@@ -10,7 +10,7 @@ used by `msprime <https://msprime.readthedocs.io/en/stable/>`_,
 `SLiM <https://messerlab.org/slim/>`_, `fwdpy11
 <https://fwdpy11.readthedocs.io/en/stable/pages/tsoverview.html>`_
 and `tsinfer <https://tsinfer.readthedocs.io/>`_. Tszip achieves much better
-compression than is possible using generic compression utitilities
+compression than is possible using generic compression utilities
 by building on the `zarr <https://zarr.readthedocs.io/en/stable/>`_
 and `numcodecs <https://numcodecs.readthedocs.io/en/stable/>`_ packages.
 
