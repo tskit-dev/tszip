@@ -106,7 +106,7 @@ def run_compress(args):
         logger.info("Compressing {}".format(file_arg))
         try:
             ts = tskit.load(file_arg)
-        except tskit.FileFormatError as ffe:
+        except (FileNotFoundError, tskit.FileFormatError) as ffe:
             exit("Error loading '{}': {}".format(file_arg, ffe))
         logger.debug("Loaded tree sequence")
         infile = pathlib.Path(file_arg)
