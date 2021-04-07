@@ -283,9 +283,8 @@ def load_zarr(path):
 def decompress_zarr(root):
     tables = tskit.TableCollection(root.attrs["sequence_length"])
     coordinates = root["coordinates"][:]
-    if "metadata_schema" in root.attrs:
+    if "metadata_schema" in root.attrs and "metadata" in root.attrs:
         tables.metadata_schema = tskit.MetadataSchema(root.attrs["metadata_schema"])
-    if "metadata" in root.attrs:
         tables.metadata = root.attrs["metadata"]
 
     tables.individuals.set_columns(
