@@ -113,6 +113,19 @@ class RoundTripMixin(object):
         self.assertGreater(ts.num_trees, 2)
         self.verify(ts)
 
+    def test_small_msprime_top_level_metadata(self):
+        ts = msprime.simulate(10, recombination_rate=2, mutation_rate=2, random_seed=2)
+        self.assertGreater(ts.num_sites, 2)
+        self.assertGreater(ts.num_trees, 2)
+        tables = ts.dump_tables()
+        top_level_schema = {
+            'codec': 'json',
+            'properties': {'my_int': {'type': 'integer'}}
+        }
+        tables.metadata_schema = tskit.MetadataSchema(top_level_schema)
+        tables.metadata = {"my_int": 1234}
+        self.verify(tables.tree_sequence())
+
     def test_small_msprime_individuals_metadata(self):
         ts = msprime.simulate(10, recombination_rate=1, mutation_rate=2, random_seed=2)
         self.assertGreater(ts.num_sites, 2)

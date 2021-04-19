@@ -172,6 +172,9 @@ def compress_zarr(ts, root, variants_only=False):
         root.attrs["format_version"] = FORMAT_VERSION
         root.attrs["sequence_length"] = tables.sequence_length
         root.attrs["provenance"] = provenance_dict
+        if tables.metadata_schema.schema is not None:
+            root.attrs["metadata_schema"] = tables.metadata_schema.schema
+            root.attrs["metadata"] = tables.metadata
 
     columns = [
         Column("coordinates", coordinates),
@@ -280,6 +283,9 @@ def load_zarr(path):
 def decompress_zarr(root):
     tables = tskit.TableCollection(root.attrs["sequence_length"])
     coordinates = root["coordinates"][:]
+    if "metadata_schema" in root.attrs and "metadata" in root.attrs:
+        tables.metadata_schema = tskit.MetadataSchema(root.attrs["metadata_schema"])
+        tables.metadata = root.attrs["metadata"]
 
     tables.individuals.set_columns(
         flags=root["individuals/flags"],
