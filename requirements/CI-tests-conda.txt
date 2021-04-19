@@ -1,0 +1,7 @@
+humanize==3.4.1
+msprime==1.0.0
+pytest==6.2.3
+pytest-cov==2.11.1
+pytest-xdist==2.2.1
+tskit==0.3.5
+zarr==2.7.1

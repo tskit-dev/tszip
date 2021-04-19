@@ -1,5 +1,0 @@
-nose
-msprime
-tskit
-zarr
-humanize

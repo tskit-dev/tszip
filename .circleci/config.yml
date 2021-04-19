@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.6-stretch
+      - image: circleci/python:3.7-buster
     working_directory: /home/circleci/tszip
     steps:
       - checkout
@@ -26,10 +26,8 @@ jobs:
           command: |
             # Run setup.py so that the version is defined
             python3 setup.py build
-            nosetests -v --with-coverage --cover-package tszip \
-              --cover-branches --cover-erase --cover-xml \
-              --cover-inclusive tests
-            python3 -m codecov 
+            pytest --cov=tszip --cov-report=xml --cov-branch -n 8 tests
+            codecov
             rm .coverage
 
       - run:

@@ -9,19 +9,11 @@ following. If you think there is anything missing,
 please open an `issue <http://github.com/tskit-dev/tszip/issues>`_ or
 `pull request <http://github.com/tskit-dev/tszip/pulls>`_ on GitHub!
 
-**********
-Quickstart
-**********
+********
+Workflow
+********
 
-- Make a fork of the tszip repo on `GitHub <http://github.com/tskit-dev/tszip>`_
-- Clone your fork into a local directory::
-
-  $ git clone git@github.com:YOUR_GITHUB/tszip.git
-
-- Install the development requirements using
-  ``python3 -m pip install -r requirements/development.txt``.
-- Run the tests to ensure everything has worked: ``python3 -m nose -vs``. These should
-  all pass.
-- Make your changes in a local branch, and open a pull request on GitHub when you
-  are ready. Please make sure that (a) the tests pass before you open the PR; and
-  (b) your code passes PEP8 checks  before opening the PR.
+An overview of the workflow is at the
+`tskit docs. <https://tskit.dev/tskit/docs/stable/development.html#workflow>`_
+Note the sections on running tests
+`here. <https://tskit.dev/tskit/docs/stable/development.html#tests>`_
