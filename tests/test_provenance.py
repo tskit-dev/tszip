@@ -24,9 +24,9 @@ Tests for the basic provenance recording.
 """
 import unittest
 
+import numcodecs
 import tskit
 import zarr
-import numcodecs
 
 import tszip
 from tszip import provenance
@@ -36,6 +36,7 @@ class TestProvenance(unittest.TestCase):
     """
     Test basic provenance properties.
     """
+
     def test_schema_validates(self):
         for params in [{}, {"a": "a"}, {"a": {"a": 1}}]:
             d = provenance.get_provenance_dict(params)
@@ -47,7 +48,8 @@ class TestProvenance(unittest.TestCase):
         d_tskit = tskit.provenance.get_provenance_dict()
         self.assertEqual(d_tszip["environment"]["os"], d_tskit["environment"]["os"])
         self.assertEqual(
-            d_tszip["environment"]["python"], d_tskit["environment"]["python"])
+            d_tszip["environment"]["python"], d_tskit["environment"]["python"]
+        )
 
     def test_libraries(self):
         libs = provenance.get_provenance_dict({})["environment"]["libraries"]

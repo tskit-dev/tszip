@@ -1,0 +1,11 @@
+# pyup.io config file
+# see https://pyup.io/docs/configuration/ for all available options
+
+schedule: every month
+pin: True
+update: all
+search: False
+label_prs: dependancy-upgrade
+assignees: benjeffery
+requirements:
+  - python/requirements/CI-tests-conda.txt

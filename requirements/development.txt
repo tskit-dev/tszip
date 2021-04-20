@@ -1,7 +1,10 @@
 codecov
 coverage
 flake8
-nose
+pre-commit
+pytest
+pytest-cov
+pytest-xdist
 sphinx
 sphinx-argparse
 sphinx_rtd_theme

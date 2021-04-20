@@ -23,10 +23,10 @@
 Command line interfaces to tszip.
 """
 import argparse
+import contextlib
 import logging
 import pathlib
 import sys
-import contextlib
 
 import tskit
 
@@ -34,14 +34,14 @@ import tszip
 from . import exceptions
 
 logger = logging.getLogger(__name__)
-log_format = '%(asctime)s %(levelname)s %(message)s'
+log_format = "%(asctime)s %(levelname)s %(message)s"
 
 
-def exit(message):
+def exit(message):  # noqa: A001
     """
     Exit with the specified error message, setting error status.
     """
-    sys.exit("{}: {}".format(sys.argv[0], message))
+    sys.exit(f"{sys.argv[0]}: {message}")
 
 
 def setup_logging(args):
@@ -55,59 +55,60 @@ def setup_logging(args):
 
 def tszip_cli_parser():
     parser = argparse.ArgumentParser(
-        description="Compress/decompress tskit trees files.")
+        description="Compress/decompress tskit trees files."
+    )
     parser.add_argument(
-        "-V", "--version", action='version',
-        version='%(prog)s {}'.format(tszip.__version__))
+        "-V", "--version", action="version", version=f"%(prog)s {tszip.__version__}"
+    )
     parser.add_argument(
-        "-v", "--verbosity", action='count', default=0,
-        help="Increase the verbosity")
+        "-v", "--verbosity", action="count", default=0, help="Increase the verbosity"
+    )
+    parser.add_argument("files", nargs="+", help="The files to compress/decompress.")
     parser.add_argument(
-        "files", nargs="+", help="The files to compress/decompress.")
-    parser.add_argument(
-        "--variants-only", action='store_true',
+        "--variants-only",
+        action="store_true",
         help=(
             "Lossy compression; throws out information not needed to "
-            "represent variants"))
+            "represent variants"
+        ),
+    )
     parser.add_argument(
-        "-S", "--suffix", default=".tsz",
-        help="Use suffix SUFFIX on compressed files")
+        "-S", "--suffix", default=".tsz", help="Use suffix SUFFIX on compressed files"
+    )
     parser.add_argument(
-        "-k", "--keep", action='store_true',
-        help="Keep (don't delete) input files")
+        "-k", "--keep", action="store_true", help="Keep (don't delete) input files"
+    )
     parser.add_argument(
-        "-f", "--force", action='store_true',
-        help="Force overwrite of output file")
+        "-f", "--force", action="store_true", help="Force overwrite of output file"
+    )
     group = parser.add_mutually_exclusive_group()
+    group.add_argument("-d", "--decompress", action="store_true", help="Decompress")
     group.add_argument(
-        "-d", "--decompress", action='store_true',
-        help="Decompress")
-    group.add_argument(
-        "-l", "--list", action='store_true',
-        help="List contents of the file")
+        "-l", "--list", action="store_true", help="List contents of the file"
+    )
     return parser
 
 
 def remove_input(infile, args):
     if not args.keep:
-        logger.info("Removing {}".format(infile))
+        logger.info(f"Removing {infile}")
         infile.unlink()
 
 
 def check_output(outfile, args):
     if outfile.exists():
         if not args.force:
-            exit("'{}' already exists; use --force to overwrite".format(outfile))
+            exit(f"'{outfile}' already exists; use --force to overwrite")
 
 
 def run_compress(args):
     setup_logging(args)
     for file_arg in args.files:
-        logger.info("Compressing {}".format(file_arg))
+        logger.info(f"Compressing {file_arg}")
         try:
             ts = tskit.load(file_arg)
         except (FileNotFoundError, tskit.FileFormatError) as ffe:
-            exit("Error loading '{}': {}".format(file_arg, ffe))
+            exit(f"Error loading '{file_arg}': {ffe}")
         logger.debug("Loaded tree sequence")
         infile = pathlib.Path(file_arg)
         outfile = pathlib.Path(file_arg + args.suffix)
@@ -123,22 +124,22 @@ def check_load_errors(file_arg):
     except OSError as ose:
         exit(str(ose))
     except exceptions.FileFormatError as ffe:
-        exit("Error reading '{}': {}".format(file_arg, ffe))
+        exit(f"Error reading '{file_arg}': {ffe}")
 
 
 def run_decompress(args):
     setup_logging(args)
     for file_arg in args.files:
-        logger.info("Decompressing {}".format(file_arg))
+        logger.info(f"Decompressing {file_arg}")
         if not file_arg.endswith(args.suffix):
-            exit("Compressed file must have '{}' suffix".format(args.suffix))
+            exit(f"Compressed file must have '{args.suffix}' suffix")
         infile = pathlib.Path(file_arg)
-        outfile = pathlib.Path(file_arg[:-len(args.suffix)])
+        outfile = pathlib.Path(file_arg[: -len(args.suffix)])
         check_output(outfile, args)
         with check_load_errors(file_arg):
             ts = tszip.decompress(file_arg)
         ts.dump(str(outfile))
-        logger.info("Wrote {}".format(outfile))
+        logger.info(f"Wrote {outfile}")
         remove_input(infile, args)
 
 

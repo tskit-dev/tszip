@@ -24,14 +24,15 @@ Versions of important dependencies and environment.
 """
 import platform
 
+import numcodecs
 import tskit
 import zarr
-import numcodecs
 
 
 __version__ = "undefined"
 try:
     from . import _version
+
     __version__ = _version.version
 except ImportError:  # pragma: nocover
     pass
@@ -52,7 +53,7 @@ def get_environment():
         "python": {
             "implementation": platform.python_implementation(),
             "version": platform.python_version(),
-        }
+        },
     }
     libs = {
         "tskit": {"version": tskit.__version__},
@@ -70,10 +71,7 @@ def get_provenance_dict(parameters):
     """
     document = {
         "schema_version": "1.0.0",
-        "software": {
-            "name": "tszip",
-            "version": __version__
-        },
+        "software": {"name": "tszip", "version": __version__},
         "parameters": parameters,
         "environment": get_environment(),
     }
