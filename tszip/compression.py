@@ -29,6 +29,7 @@ import os.path
 import tempfile
 import warnings
 import zipfile
+from typing import Mapping
 
 import humanize
 import numcodecs
@@ -158,16 +159,47 @@ def compress_zarr(ts, root, variants_only=False):
 
     if variants_only:
         logging.info("Using lossy variants-only compression")
-        # Reduce to site topology and quantise node times. Note that we will remove
+        # Reduce to site topology. Note that we will remove
         # any sites, individuals and populations here that have no references.
         ts = ts.simplify(reduce_to_site_topology=True)
-        tables = ts.tables
-        time = np.unique(tables.nodes.time)
-        node_time = np.searchsorted(time, tables.nodes.time)
-    else:
-        tables = ts.tables
-        node_time = tables.nodes.time
 
+    tables = ts.tables
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        # When using a zipfile in Zarr we get some harmless warnings. See
+        # https://zarr.readthedocs.io/en/stable/api/storage.html#zarr.storage.ZipStore
+        root.attrs["format_name"] = FORMAT_NAME
+        root.attrs["format_version"] = FORMAT_VERSION
+        root.attrs["sequence_length"] = tables.sequence_length
+        root.attrs["provenance"] = provenance_dict
+
+    columns = {}
+    for key, value in tables.asdict().items():
+        if isinstance(value, dict):
+            for sub_key, sub_value in value.items():
+                columns[f"{key}/{sub_key}"] = sub_value
+        else:
+            columns[key] = value
+
+    if variants_only:
+        time = np.unique(tables.nodes.time)
+        columns["node/time"] = np.searchsorted(time, tables.nodes.time)
+
+    # Encoding array is a tuple so must be converted
+    columns["encoding_version"] = np.asarray(columns["encoding_version"])
+
+    # Sequence length is stored as an attr for compatibility with older versions of tszip
+    del columns["sequence_length"]
+
+    # Schemas and metadata need to be converted to arrays
+    for name in columns:
+        if name.endswith("metadata_schema"):
+            columns[name] = np.frombuffer(columns[name].encode("utf-8"), np.int8)
+        if name.endswith("metadata"):
+            columns[name] = np.frombuffer(columns[name], np.int8)
+
+    # Some columns benefit from being quantised
     coordinates = np.unique(
         np.hstack(
             [
@@ -180,78 +212,18 @@ def compress_zarr(ts, root, variants_only=False):
             ]
         )
     )
+    columns["coordinates"] = coordinates
+    for name in [
+        "edges/left",
+        "edges/right",
+        "migrations/left",
+        "migrations/right",
+        "sites/position",
+    ]:
+        columns[name] = np.searchsorted(coordinates, columns[name])
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        # When using a zipfile in Zarr we get some harmless warnings. See
-        # https://zarr.readthedocs.io/en/stable/api/storage.html#zarr.storage.ZipStore
-        root.attrs["format_name"] = FORMAT_NAME
-        root.attrs["format_version"] = FORMAT_VERSION
-        root.attrs["sequence_length"] = tables.sequence_length
-        root.attrs["provenance"] = provenance_dict
-        if tables.metadata_schema.schema is not None:
-            root.attrs["metadata_schema"] = tables.metadata_schema.schema
-            root.attrs["metadata"] = tables.metadata
-
-    columns = [
-        Column("coordinates", coordinates),
-        Column("individuals/flags", tables.individuals.flags),
-        Column("individuals/location", tables.individuals.location),
-        Column(
-            "individuals/location_offset",
-            tables.individuals.location_offset,
-            delta_filter=True,
-        ),
-        Column("individuals/metadata", tables.individuals.metadata),
-        Column(
-            "individuals/metadata_offset",
-            tables.individuals.metadata_offset,
-            delta_filter=True,
-        ),
-        Column("nodes/time", node_time),
-        Column("nodes/flags", tables.nodes.flags),
-        Column("nodes/population", tables.nodes.population),
-        Column("nodes/individual", tables.nodes.individual),
-        Column("nodes/metadata", tables.nodes.metadata),
-        Column(
-            "nodes/metadata_offset", tables.nodes.metadata_offset, delta_filter=True
-        ),
-        # Delta filtering makes storage slightly worse for everything except parent.
-        Column("edges/left", np.searchsorted(coordinates, tables.edges.left)),
-        Column("edges/right", np.searchsorted(coordinates, tables.edges.right)),
-        Column("edges/parent", tables.edges.parent, delta_filter=True),
-        Column("edges/child", tables.edges.child),
-        Column("migrations/left", np.searchsorted(coordinates, tables.migrations.left)),
-        Column(
-            "migrations/right", np.searchsorted(coordinates, tables.migrations.right)
-        ),
-        Column("migrations/node", tables.migrations.node),
-        Column("migrations/source", tables.migrations.source),
-        Column("migrations/dest", tables.migrations.dest),
-        Column("migrations/time", tables.migrations.time),
-        Column(
-            "sites/position",
-            np.searchsorted(coordinates, tables.sites.position),
-            delta_filter=True,
-        ),
-        Column("sites/ancestral_state", tables.sites.ancestral_state),
-        Column("sites/ancestral_state_offset", tables.sites.ancestral_state_offset),
-        Column("sites/metadata", tables.sites.metadata),
-        Column("sites/metadata_offset", tables.sites.metadata_offset),
-        Column("mutations/site", tables.mutations.site),
-        Column("mutations/node", tables.mutations.node),
-        Column("mutations/parent", tables.mutations.parent),
-        Column("mutations/derived_state", tables.mutations.derived_state),
-        Column("mutations/derived_state_offset", tables.mutations.derived_state_offset),
-        Column("mutations/metadata", tables.mutations.metadata),
-        Column("mutations/metadata_offset", tables.mutations.metadata_offset),
-        Column("populations/metadata", tables.populations.metadata),
-        Column("populations/metadata_offset", tables.populations.metadata_offset),
-        Column("provenances/timestamp", tables.provenances.timestamp),
-        Column("provenances/timestamp_offset", tables.provenances.timestamp_offset),
-        Column("provenances/record", tables.provenances.record),
-        Column("provenances/record_offset", tables.provenances.record_offset),
-    ]
+    # Some columns benefit from additional options
+    delta_filter_cols = ["edges/parent", "sites/position"]
 
     # Note: we're not providing any options to set this here because Blosc+Zstd seems to
     # have a clear advantage in compression performance and speed. There is very little
@@ -261,8 +233,10 @@ def compress_zarr(ts, root, variants_only=False):
     compressor = numcodecs.Blosc(
         cname="zstd", clevel=9, shuffle=numcodecs.Blosc.SHUFFLE
     )
-    for column in columns:
-        column.compress(root, compressor)
+    for name, data in columns.items():
+        Column(
+            name, data, delta_filter="_offset" in name or name in delta_filter_cols
+        ).compress(root, compressor)
 
 
 def check_format(root):
@@ -307,76 +281,35 @@ def load_zarr(path):
 
 
 def decompress_zarr(root):
-    tables = tskit.TableCollection(root.attrs["sequence_length"])
     coordinates = root["coordinates"][:]
-    if "metadata_schema" in root.attrs and "metadata" in root.attrs:
-        tables.metadata_schema = tskit.MetadataSchema(root.attrs["metadata_schema"])
-        tables.metadata = root.attrs["metadata"]
+    dict_repr = {"sequence_length": root.attrs["sequence_length"]}
 
-    tables.individuals.set_columns(
-        flags=root["individuals/flags"],
-        location=root["individuals/location"],
-        location_offset=root["individuals/location_offset"],
-        metadata=root["individuals/metadata"],
-        metadata_offset=root["individuals/metadata_offset"],
-    )
+    quantised_arrays = [
+        "edges/left",
+        "edges/right",
+        "migrations/left",
+        "migrations/right",
+        "sites/position",
+    ]
+    for key, value in root.items():
+        if isinstance(value, Mapping):
+            for sub_key, sub_value in value.items():
+                if f"{key}/{sub_key}" in quantised_arrays:
+                    dict_repr.setdefault(key, {})[sub_key] = coordinates[sub_value]
+                elif sub_key.endswith("metadata_schema"):
+                    dict_repr.setdefault(key, {})[sub_key] = bytes(sub_value).decode(
+                        "utf-8"
+                    )
+                else:
+                    dict_repr.setdefault(key, {})[sub_key] = sub_value
+        elif key.endswith("metadata_schema"):
+            dict_repr[key] = bytes(value).decode("utf-8")
+        elif key.endswith("metadata"):
+            dict_repr[key] = bytes(value)
+        else:
+            dict_repr[key] = value
 
-    tables.nodes.set_columns(
-        flags=root["nodes/flags"],
-        time=root["nodes/time"],
-        population=root["nodes/population"],
-        individual=root["nodes/individual"],
-        metadata=root["nodes/metadata"],
-        metadata_offset=root["nodes/metadata_offset"],
-    )
-
-    tables.edges.set_columns(
-        left=coordinates[root["edges/left"]],
-        right=coordinates[root["edges/right"]],
-        parent=root["edges/parent"],
-        child=root["edges/child"],
-    )
-
-    tables.migrations.set_columns(
-        left=coordinates[root["migrations/left"]],
-        right=coordinates[root["migrations/right"]],
-        node=root["migrations/node"],
-        source=root["migrations/source"],
-        dest=root["migrations/dest"],
-        time=root["migrations/time"],
-    )
-
-    tables.sites.set_columns(
-        position=coordinates[root["sites/position"]],
-        ancestral_state=root["sites/ancestral_state"],
-        ancestral_state_offset=root["sites/ancestral_state_offset"],
-        metadata=root["sites/metadata"],
-        metadata_offset=root["sites/metadata_offset"],
-    )
-
-    tables.mutations.set_columns(
-        site=root["mutations/site"],
-        node=root["mutations/node"],
-        parent=root["mutations/parent"],
-        derived_state=root["mutations/derived_state"],
-        derived_state_offset=root["mutations/derived_state_offset"],
-        metadata=root["mutations/metadata"],
-        metadata_offset=root["mutations/metadata_offset"],
-    )
-
-    tables.populations.set_columns(
-        metadata=root["populations/metadata"],
-        metadata_offset=root["populations/metadata_offset"],
-    )
-
-    tables.provenances.set_columns(
-        timestamp=root["provenances/timestamp"],
-        timestamp_offset=root["provenances/timestamp_offset"],
-        record=root["provenances/record"],
-        record_offset=root["provenances/record_offset"],
-    )
-
-    return tables.tree_sequence()
+    return tskit.TableCollection.fromdict(dict_repr).tree_sequence()
 
 
 def print_summary(path, verbosity=0):

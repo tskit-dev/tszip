@@ -31,7 +31,6 @@ from unittest import mock
 
 import msprime
 import numpy as np
-import pytest
 import tskit
 
 import tszip
@@ -42,6 +41,9 @@ class TestException(Exception):
     """
     Custom exception we can throw for testing.
     """
+
+    # We don't want pytest to use this as a class to test
+    __test__ = False
 
 
 def capture_output(func, *args, **kwargs):
@@ -189,7 +191,6 @@ class TestCompressSemantics(TestCli):
     def tearDown(self):
         del self.tmpdir
 
-    @pytest.mark.xfail
     def test_simple(self):
         self.assertTrue(self.trees_path.exists())
         self.run_tszip([str(self.trees_path)])
@@ -199,7 +200,6 @@ class TestCompressSemantics(TestCli):
         ts = tszip.decompress(outpath)
         self.assertEqual(ts.tables, self.ts.tables)
 
-    @pytest.mark.xfail
     def test_suffix(self):
         self.assertTrue(self.trees_path.exists())
         self.run_tszip([str(self.trees_path), "-S", ".XYZasdf"])
@@ -221,7 +221,6 @@ class TestCompressSemantics(TestCli):
         G2 = self.ts.genotype_matrix()
         self.assertTrue(np.array_equal(G1, G2))
 
-    @pytest.mark.xfail
     def test_keep(self):
         self.assertTrue(self.trees_path.exists())
         self.run_tszip([str(self.trees_path), "--keep"])
@@ -231,7 +230,6 @@ class TestCompressSemantics(TestCli):
         ts = tszip.decompress(outpath)
         self.assertEqual(ts.tables, self.ts.tables)
 
-    @pytest.mark.xfail
     def test_overwrite(self):
         self.assertTrue(self.trees_path.exists())
         outpath = pathlib.Path(str(self.trees_path) + ".tsz")
@@ -255,7 +253,6 @@ class TestCompressSemantics(TestCli):
                 f"'{outpath}' already exists; use --force to overwrite"
             )
 
-    @pytest.mark.xfail
     def test_bad_file_format(self):
         self.assertTrue(self.trees_path.exists())
         with open(str(self.trees_path), "w") as f:
@@ -283,7 +280,6 @@ class DecompressSemanticsMixin:
     def tearDown(self):
         del self.tmpdir
 
-    @pytest.mark.xfail
     def test_simple(self):
         self.assertTrue(self.compressed_path.exists())
         self.run_decompress([str(self.compressed_path)])
@@ -293,7 +289,6 @@ class DecompressSemanticsMixin:
         ts = tskit.load(str(outpath))
         self.assertEqual(ts.tables, self.ts.tables)
 
-    @pytest.mark.xfail
     def test_suffix(self):
         suffix = ".XYGsdf"
         self.compressed_path = self.compressed_path.with_suffix(suffix)
@@ -306,7 +301,6 @@ class DecompressSemanticsMixin:
         ts = tskit.load(str(outpath))
         self.assertEqual(ts.tables, self.ts.tables)
 
-    @pytest.mark.xfail
     def test_keep(self):
         self.assertTrue(self.compressed_path.exists())
         self.run_decompress([str(self.compressed_path), "--keep"])
@@ -316,7 +310,6 @@ class DecompressSemanticsMixin:
         ts = tskit.load(str(outpath))
         self.assertEqual(ts.tables, self.ts.tables)
 
-    @pytest.mark.xfail
     def test_overwrite(self):
         self.assertTrue(self.compressed_path.exists())
         outpath = self.trees_path
@@ -346,7 +339,6 @@ class DecompressSemanticsMixin:
                 "Compressed file must have 'asdf' suffix"
             )
 
-    @pytest.mark.xfail
     def test_bad_file_format(self):
         self.assertTrue(self.compressed_path.exists())
         with open(str(self.compressed_path), "w") as f:

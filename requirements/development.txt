@@ -1,6 +1,7 @@
 codecov
 coverage
 flake8
+h5py
 pre-commit
 pytest
 pytest-cov

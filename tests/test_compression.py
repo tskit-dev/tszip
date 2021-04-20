@@ -28,7 +28,6 @@ import unittest
 
 import msprime
 import numpy as np
-import pytest
 import tskit
 import zarr
 
@@ -106,20 +105,17 @@ class RoundTripMixin:
     Set of example tree sequences that we should be able to round trip.
     """
 
-    @pytest.mark.xfail
     def test_small_msprime_no_recomb(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=2)
         self.assertGreater(ts.num_sites, 2)
         self.verify(ts)
 
-    @pytest.mark.xfail
     def test_small_msprime_recomb(self):
         ts = msprime.simulate(10, recombination_rate=2, mutation_rate=2, random_seed=2)
         self.assertGreater(ts.num_sites, 2)
         self.assertGreater(ts.num_trees, 2)
         self.verify(ts)
 
-    @pytest.mark.xfail
     def test_small_msprime_migration(self):
         ts = msprime.simulate(
             population_configurations=[
@@ -137,7 +133,6 @@ class RoundTripMixin:
         self.assertGreater(ts.num_trees, 2)
         self.verify(ts)
 
-    @pytest.mark.xfail
     def test_small_msprime_top_level_metadata(self):
         ts = msprime.simulate(10, recombination_rate=2, mutation_rate=2, random_seed=2)
         self.assertGreater(ts.num_sites, 2)
@@ -151,7 +146,6 @@ class RoundTripMixin:
         tables.metadata = {"my_int": 1234}
         self.verify(tables.tree_sequence())
 
-    @pytest.mark.xfail
     def test_small_msprime_individuals_metadata(self):
         ts = msprime.simulate(10, recombination_rate=1, mutation_rate=2, random_seed=2)
         self.assertGreater(ts.num_sites, 2)
@@ -159,7 +153,9 @@ class RoundTripMixin:
         tables = ts.dump_tables()
         tables.nodes.clear()
         for j, node in enumerate(ts.nodes()):
-            tables.individuals.add_row(flags=j, location=[j] * j, metadata=b"x" * j)
+            tables.individuals.add_row(
+                flags=j, location=[j] * j, parents=[j - 1] * j, metadata=b"x" * j
+            )
             tables.nodes.add_row(
                 flags=node.flags,
                 population=node.population,
@@ -169,6 +165,7 @@ class RoundTripMixin:
             )
         tables.populations.clear()
         tables.populations.add_row(metadata=b"X" * 1024)
+        tables.sort()
         self.verify(tables.tree_sequence())
 
     def test_small_msprime_complex_mutations(self):
@@ -198,6 +195,36 @@ class RoundTripMixin:
         tables.sites.add_row(position=0, ancestral_state="A")
         tables.mutations.add_row(site=0, node=0, derived_state="T")
         tables.mutations.add_row(site=0, node=0, parent=0, derived_state="A")
+        self.verify(tables.tree_sequence())
+
+    def test_all_fields(self):
+        demography = msprime.Demography()
+        demography.add_population(name="A", initial_size=10_000)
+        demography.add_population(name="B", initial_size=5_000)
+        demography.add_population(name="C", initial_size=1_000)
+        demography.add_population_split(time=1000, derived=["A", "B"], ancestral="C")
+        ts = msprime.sim_ancestry(
+            samples={"A": 1, "B": 1},
+            demography=demography,
+            random_seed=42,
+            record_migrations=True,
+        )
+        ts = msprime.sim_mutations(ts, rate=1, random_seed=42)
+        tables = ts.dump_tables()
+        for name, table in tables.name_map.items():
+            if name not in ["provenances", "edges"]:
+                table.metadata_schema = tskit.MetadataSchema({"codec": "json"})
+                metadatas = [f'{{"foo":"n_{name}_{u}"}}' for u in range(len(table))]
+                metadata, metadata_offset = tskit.pack_strings(metadatas)
+                table.set_columns(
+                    **{
+                        **table.asdict(),
+                        "metadata": metadata,
+                        "metadata_offset": metadata_offset,
+                    }
+                )
+        tables.metadata_schema = tskit.MetadataSchema({"codec": "json"})
+        tables.metadata = "Test metadata"
         self.verify(tables.tree_sequence())
 
 
