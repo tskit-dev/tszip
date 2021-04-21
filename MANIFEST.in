@@ -1,2 +1,2 @@
 include LICENSE
-include tsconvert/_version.py
+include tszip/_version.py
