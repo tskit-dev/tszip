@@ -81,6 +81,7 @@ def tszip_cli_parser():
     parser.add_argument(
         "-f", "--force", action="store_true", help="Force overwrite of output file"
     )
+    parser.add_argument("-c", "--stdout", action="store_true", help="Write to stdout")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-d", "--decompress", action="store_true", help="Decompress")
     group.add_argument(
@@ -102,6 +103,11 @@ def check_output(outfile, args):
 
 
 def run_compress(args):
+    if args.stdout:
+        exit(
+            "Compressing to stdout not currently supported;"
+            "Please see https://github.com/tskit-dev/tszip/issues/49"
+        )
     setup_logging(args)
     for file_arg in args.files:
         logger.info(f"Compressing {file_arg}")
@@ -134,8 +140,12 @@ def run_decompress(args):
         if not file_arg.endswith(args.suffix):
             exit(f"Compressed file must have '{args.suffix}' suffix")
         infile = pathlib.Path(file_arg)
-        outfile = pathlib.Path(file_arg[: -len(args.suffix)])
-        check_output(outfile, args)
+        if args.stdout:
+            args.keep = True
+            outfile = sys.stdout
+        else:
+            outfile = pathlib.Path(file_arg[: -len(args.suffix)])
+            check_output(outfile, args)
         with check_load_errors(file_arg):
             ts = tszip.decompress(file_arg)
         ts.dump(outfile)
