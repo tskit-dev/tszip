@@ -138,7 +138,7 @@ def run_decompress(args):
         check_output(outfile, args)
         with check_load_errors(file_arg):
             ts = tszip.decompress(file_arg)
-        ts.dump(str(outfile))
+        ts.dump(outfile)
         logger.info(f"Wrote {outfile}")
         remove_input(infile, args)
 
