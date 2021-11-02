@@ -26,7 +26,7 @@ jobs:
           command: |
             # Run setup.py so that the version is defined
             python3 setup.py build
-            pytest --cov=tszip --cov-report=xml --cov-branch -n 8 tests
+            python3 -m pytest --cov=tszip --cov-report=xml --cov-branch -n 2 tests
             codecov
             rm .coverage
 
