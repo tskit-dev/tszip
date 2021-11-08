@@ -4,7 +4,7 @@
 Command line interface
 ======================
 
-Tszkip is intended to be used primarily as a command line interface.
+Tszip is intended to be used primarily as a command line interface.
 The interface for tszip is modelled directly on
 `gzip <http://linuxcommand.org/lc3_man_pages/gzip1.html>`_, and so
 it should hopefully be immediately familiar and useful to many people.
