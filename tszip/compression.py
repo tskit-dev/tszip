@@ -23,9 +23,11 @@
 Compression utilities for tskit tree sequences.
 """
 import contextlib
+import functools
 import json
 import logging
-import os.path
+import os
+import pathlib
 import tempfile
 import warnings
 import zipfile
@@ -71,32 +73,43 @@ def minimal_dtype(array):
     return dtype
 
 
-def compress(ts, path, variants_only=False):
+def compress(ts, destination, variants_only=False):
     """
-    Compresses the specified tree sequence and writes it to the specified path.
-    By default, fully lossless compression is used so that tree sequences are
-    identical before and after compression. By specifying the ``variants_only``
-    option, a lossy compression can be used, which discards any information
-    that is not needed to represent the variants (which are stored losslessly).
+    Compresses the specified tree sequence and writes it to the specified path
+    or file-like object. By default, fully lossless compression is used so that
+    tree sequences are identical before and after compression. By specifying
+    the ``variants_only`` option, a lossy compression can be used, which
+    discards any information that is not needed to represent the variants
+    (which are stored losslessly).
 
     :param tskit.TreeSequence ts: The input tree sequence.
-    :param str destination: The string or :class:`pathlib.Path` instance describing
-        the location of the compressed file.
+    :param str destination: The string, :class:`pathlib.Path` or file-like object
+        we should write the compressed file to.
     :param bool variants_only: If True, discard all information not necessary
         to represent the variants in the input file.
     """
-    destination = str(path)
-    # Write the file into a temporary directory on the same file system so that
-    # we can write the output atomically.
-    destdir = os.path.dirname(os.path.abspath(destination))
+    try:
+        destination = pathlib.Path(destination).resolve()
+        is_path = True
+        destdir = destination.parent
+    except TypeError:
+        is_path = False
+        destdir = None
     with tempfile.TemporaryDirectory(dir=destdir, prefix=".tszip_work_") as tmpdir:
-        filename = os.path.join(tmpdir, "tmp.trees.tgz")
+        filename = pathlib.Path(tmpdir, "tmp.trees.tgz")
         logging.debug(f"Writing to temporary file {filename}")
         with zarr.ZipStore(filename, mode="w") as store:
             root = zarr.group(store=store)
             compress_zarr(ts, root, variants_only=variants_only)
-        os.replace(filename, destination)
-    logging.info(f"Wrote {destination}")
+        if is_path:
+            os.replace(filename, destination)
+            logging.info(f"Wrote {destination}")
+        else:
+            # Assume that destination is a file-like object open in "wb" mode.
+            with open(filename, "rb") as source:
+                chunk_size = 2 ** 10  # 1MiB
+                for chunk in iter(functools.partial(source.read, chunk_size), b""):
+                    destination.write(chunk)
 
 
 def decompress(path):
@@ -275,7 +288,7 @@ def load_zarr(path):
     try:
         store = zarr.ZipStore(path, mode="r")
     except zipfile.BadZipFile as bzf:
-        raise exceptions.FileFormatError("File is not in tgzip format") from bzf
+        raise exceptions.FileFormatError("File is not in tszip format") from bzf
     root = zarr.group(store=store)
     try:
         check_format(root)
