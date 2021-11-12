@@ -98,16 +98,18 @@ def remove_input(infile, args):
 
 def check_output(outfile, args):
     if outfile.exists():
-        if not args.force:
+        if not (args.force or args.stdout):
             exit(f"'{outfile}' already exists; use --force to overwrite")
+
+
+# Allows us to easily patch when running tests.
+def get_stdout():
+    return sys.stdout.buffer
 
 
 def run_compress(args):
     if args.stdout:
-        exit(
-            "Compressing to stdout not currently supported;"
-            "Please see https://github.com/tskit-dev/tszip/issues/49"
-        )
+        args.keep = True
     setup_logging(args)
     for file_arg in args.files:
         logger.info(f"Compressing {file_arg}")
@@ -119,6 +121,8 @@ def run_compress(args):
         infile = pathlib.Path(file_arg)
         outfile = pathlib.Path(file_arg + args.suffix)
         check_output(outfile, args)
+        if args.stdout:
+            outfile = get_stdout()
         tszip.compress(ts, outfile, variants_only=args.variants_only)
         remove_input(infile, args)
 

@@ -36,6 +36,17 @@ import tszip
 import tszip.cli as cli
 
 
+def get_stdout_for_pytest():
+    """
+    Pytest automatically wraps stdout to intercept output, but the object
+    that it uses isn't fully compatible with the production implementation.
+    Specifically, it doesn't provide a "buffer" attribute, which we
+    need when writing binary data to it. This is a workaround to make
+    out tests work.
+    """
+    return sys.stdout
+
+
 class TestException(Exception):
     """
     Custom exception we can throw for testing.
@@ -284,15 +295,22 @@ class TestCompressSemantics(TestCli):
                 f" command."
             )
 
-    def test_compress_stdout(self):
+    def test_compress_stdout_keep(self):
         self.assertTrue(self.trees_path.exists())
-        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
-            with self.assertRaises(TestException):
-                self.run_tszip([str(self.trees_path)] + ["-c"])
-            mocked_exit.assert_called_once_with(
-                "Compressing to stdout not currently supported;"
-                "Please see https://github.com/tskit-dev/tszip/issues/49"
-            )
+        with mock.patch("tszip.cli.get_stdout", wraps=get_stdout_for_pytest):
+            self.run_tszip_stdout([str(self.trees_path)] + ["-c"])
+        self.assertTrue(self.trees_path.exists())
+
+    def test_compress_stdout_correct(self):
+        self.assertTrue(self.trees_path.exists())
+        tmp_file = pathlib.Path(self.tmpdir.name) / "stdout.trees"
+        with mock.patch("tszip.cli.get_stdout", wraps=get_stdout_for_pytest):
+            stdout, stderr = self.run_tszip_stdout(["-c", str(self.trees_path)])
+        with open(tmp_file, "wb+") as tmp:
+            tmp.write(stdout)
+        self.assertTrue(tmp_file.exists())
+        ts = tszip.decompress(str(tmp_file))
+        self.assertEqual(ts.tables, self.ts.tables)
 
 
 class DecompressSemanticsMixin:
@@ -416,7 +434,7 @@ class DecompressSemanticsMixin:
             with self.assertRaises(TestException):
                 self.run_decompress([str(self.compressed_path)])
             mocked_exit.assert_called_once_with(
-                "Error reading '{}': File is not in tgzip format".format(
+                "Error reading '{}': File is not in tszip format".format(
                     self.compressed_path
                 )
             )
@@ -485,7 +503,7 @@ class TestList(unittest.TestCase):
             with self.assertRaises(TestException):
                 cli.tszip_main([str(self.compressed_path), "-l"])
             mocked_exit.assert_called_once_with(
-                "Error reading '{}': File is not in tgzip format".format(
+                "Error reading '{}': File is not in tszip format".format(
                     self.compressed_path
                 )
             )
