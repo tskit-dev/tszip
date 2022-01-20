@@ -211,7 +211,7 @@ class RoundTripMixin:
         )
         ts = msprime.sim_mutations(ts, rate=1, random_seed=42)
         tables = ts.dump_tables()
-        for name, table in tables.name_map.items():
+        for name, table in tables.table_name_map.items():
             if name not in ["provenances", "edges"]:
                 table.metadata_schema = tskit.MetadataSchema({"codec": "json"})
                 metadatas = [f'{{"foo":"n_{name}_{u}"}}' for u in range(len(table))]
