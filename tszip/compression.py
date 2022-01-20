@@ -124,6 +124,14 @@ class Column:
         self.delta_filter = delta_filter
 
     def compress(self, root, compressor):
+        array_type = "nparray"
+        if isinstance(self.array, str):
+            self.array = np.frombuffer(self.array.encode("utf-8"), np.int8)
+            array_type = "str"
+        elif isinstance(self.array, bytes):
+            self.array = np.frombuffer(self.array, np.int8)
+            array_type = "bytes"
+
         shape = self.array.shape
         chunks = shape
         if shape[0] == 0:
@@ -140,6 +148,7 @@ class Column:
             filters=filters,
             compressor=compressor,
         )
+        compressed_array.attrs["tszip_type"] = array_type
         compressed_array[:] = self.array
         ratio = 0
         if compressed_array.nbytes > 0:
@@ -191,13 +200,6 @@ def compress_zarr(ts, root, variants_only=False):
 
     # Sequence length is stored as an attr for compatibility with older versions of tszip
     del columns["sequence_length"]
-
-    # Schemas, metadata and units need to be converted to arrays
-    for name in columns:
-        if name.endswith("metadata_schema") or name == "time_units":
-            columns[name] = np.frombuffer(columns[name].encode("utf-8"), np.int8)
-        if name.endswith("metadata"):
-            columns[name] = np.frombuffer(columns[name], np.int8)
 
     # Some columns benefit from being quantised
     coordinates = np.unique(
@@ -302,7 +304,12 @@ def decompress_zarr(root):
                     )
                 else:
                     dict_repr.setdefault(key, {})[sub_key] = sub_value
-        elif key.endswith("metadata_schema") or key == "time_units":
+        elif value.attrs.get("tszip_type") == "str":
+            dict_repr[key] = bytes(value).decode("utf-8")
+        elif value.attrs.get("tszip_type") == "bytes":
+            dict_repr[key] = bytes(value)
+        # We manually check these for legacy tszips that didn't store type info.
+        elif key.endswith("metadata_schema"):
             dict_repr[key] = bytes(value).decode("utf-8")
         elif key.endswith("metadata"):
             dict_repr[key] = bytes(value)
