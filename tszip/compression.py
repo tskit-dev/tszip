@@ -192,9 +192,9 @@ def compress_zarr(ts, root, variants_only=False):
     # Sequence length is stored as an attr for compatibility with older versions of tszip
     del columns["sequence_length"]
 
-    # Schemas and metadata need to be converted to arrays
+    # Schemas, metadata and units need to be converted to arrays
     for name in columns:
-        if name.endswith("metadata_schema"):
+        if name.endswith("metadata_schema") or name == "time_units":
             columns[name] = np.frombuffer(columns[name].encode("utf-8"), np.int8)
         if name.endswith("metadata"):
             columns[name] = np.frombuffer(columns[name], np.int8)
@@ -302,7 +302,7 @@ def decompress_zarr(root):
                     )
                 else:
                     dict_repr.setdefault(key, {})[sub_key] = sub_value
-        elif key.endswith("metadata_schema"):
+        elif key.endswith("metadata_schema") or key == "time_units":
             dict_repr[key] = bytes(value).decode("utf-8")
         elif key.endswith("metadata"):
             dict_repr[key] = bytes(value)
