@@ -4,6 +4,8 @@
 
 - Fix for `time_units` in tskit 0.4.0 (benjeffery, #54, #55)
 
+- Add support for reference sequence (benjeffery, #59)
+
 --------------------
 [0.2.0] - 2021-11-08
 --------------------

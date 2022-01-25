@@ -194,7 +194,11 @@ def compress_zarr(ts, root, variants_only=False):
 
     # Schemas, metadata and units need to be converted to arrays
     for name in columns:
-        if name.endswith("metadata_schema") or name == "time_units":
+        if name.endswith("metadata_schema") or name in [
+            "time_units",
+            "reference_sequence/data",
+            "reference_sequence/url",
+        ]:
             columns[name] = np.frombuffer(columns[name].encode("utf-8"), np.int8)
         if name.endswith("metadata"):
             columns[name] = np.frombuffer(columns[name], np.int8)
@@ -296,10 +300,15 @@ def decompress_zarr(root):
             for sub_key, sub_value in value.items():
                 if f"{key}/{sub_key}" in quantised_arrays:
                     dict_repr.setdefault(key, {})[sub_key] = coordinates[sub_value]
-                elif sub_key.endswith("metadata_schema"):
+                elif sub_key.endswith("metadata_schema") or (key, sub_key) in [
+                    ("reference_sequence", "data"),
+                    ("reference_sequence", "url"),
+                ]:
                     dict_repr.setdefault(key, {})[sub_key] = bytes(sub_value).decode(
                         "utf-8"
                     )
+                elif (key, sub_key) == ("reference_sequence", "metadata"):
+                    dict_repr.setdefault(key, {})[sub_key] = bytes(sub_value)
                 else:
                     dict_repr.setdefault(key, {})[sub_key] = sub_value
         elif key.endswith("metadata_schema") or key == "time_units":
@@ -308,7 +317,6 @@ def decompress_zarr(root):
             dict_repr[key] = bytes(value)
         else:
             dict_repr[key] = value
-
     return tskit.TableCollection.fromdict(dict_repr).tree_sequence()
 
 
