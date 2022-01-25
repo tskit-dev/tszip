@@ -188,6 +188,19 @@ class RoundTripMixin:
                 )
         self.verify(tables.tree_sequence())
 
+    def test_ref_seq(self):
+        ts = msprime.simulate(10, recombination_rate=1, mutation_rate=2, random_seed=2)
+        tables = ts.tables
+        tables.reference_sequence.metadata_schema = (
+            tskit.MetadataSchema.permissive_json()
+        )
+        tables.reference_sequence.metadata = {"some": "data"}
+        tables.reference_sequence.data = "ACTG"
+        # NOTE: it's unclear whether we'll want to have this set at the same time as
+        # 'data', but it's useful to have something in all columns for now.
+        tables.reference_sequence.url = "http://example.com/a_reference"
+        self.verify(tables.tree_sequence())
+
     def test_mutation_parent_example(self):
         tables = tskit.TableCollection(1)
         tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
@@ -263,7 +276,7 @@ class TestExactRoundTrip(unittest.TestCase, RoundTripMixin):
             path = pathlib.Path(tmpdir) / "treeseq.tsz"
             tszip.compress(ts, path)
             other_ts = tszip.decompress(path)
-        self.assertEqual(ts.tables, other_ts.tables)
+        ts.tables.assert_equals(other_ts.tables)
 
 
 class TestMetadata(unittest.TestCase):
