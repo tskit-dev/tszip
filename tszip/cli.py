@@ -111,6 +111,8 @@ def run_compress(args):
     if args.stdout:
         args.keep = True
     setup_logging(args)
+    if args.stdout and len(args.files) > 1:
+        exit("Only one file can be compressed on with '-c'")
     for file_arg in args.files:
         logger.info(f"Compressing {file_arg}")
         try:

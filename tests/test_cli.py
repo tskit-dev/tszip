@@ -312,6 +312,17 @@ class TestCompressSemantics(TestCli):
         ts = tszip.decompress(str(tmp_file))
         self.assertEqual(ts.tables, self.ts.tables)
 
+    def test_compress_stdout_multiple(self):
+        self.assertTrue(self.trees_path.exists())
+        with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
+            with self.assertRaises(TestException):
+                self.run_tszip_stdout(
+                    ["-c", str(self.trees_path), str(self.trees_path)]
+                )
+            mocked_exit.assert_called_once_with(
+                "Only one file can be compressed on with '-c'"
+            )
+
 
 class DecompressSemanticsMixin:
     """
