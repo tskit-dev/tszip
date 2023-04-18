@@ -107,7 +107,7 @@ def compress(ts, destination, variants_only=False):
         else:
             # Assume that destination is a file-like object open in "wb" mode.
             with open(filename, "rb") as source:
-                chunk_size = 2 ** 10  # 1MiB
+                chunk_size = 2**10  # 1MiB
                 for chunk in iter(functools.partial(source.read, chunk_size), b""):
                     destination.write(chunk)
 
@@ -167,7 +167,6 @@ class Column:
 
 
 def compress_zarr(ts, root, variants_only=False):
-
     provenance_dict = provenance.get_provenance_dict({"variants_only": variants_only})
 
     if variants_only:
