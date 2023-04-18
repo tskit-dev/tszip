@@ -4,5 +4,5 @@ msprime==1.1.0
 pytest==6.2.5
 pytest-cov==3.0.0
 pytest-xdist==2.5.0
-tskit==0.4.1
+tskit==0.5.4
 zarr==2.10.3
