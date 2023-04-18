@@ -1,4 +1,8 @@
-version: 2
+version: 2.1
+
+orbs:
+  codecov: codecov/codecov@3.2.4
+
 jobs:
   build:
     docker:
@@ -27,8 +31,10 @@ jobs:
             # Run setup.py so that the version is defined
             python3 setup.py build
             python3 -m pytest --cov=tszip --cov-report=xml --cov-branch -n 2 tests
-            codecov
             rm .coverage
+
+      - codecov/upload:
+          token: CODECOV_TOKEN
 
       - run:
           name: Build Python package
