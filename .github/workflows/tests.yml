@@ -23,7 +23,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python: [ 3.7, 3.9 ]
+        python: [ 3.8, "3.10" ]
         os:  [ macos-latest, ubuntu-latest, windows-latest ]
     defaults:
       run:
@@ -48,7 +48,7 @@ jobs:
             /usr/share/miniconda/envs/anaconda-client-env
             ~/osx-conda
             ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v11-${{ hashFiles('requirements/CI-tests-conda.txt') }}
+          key: ${{ runner.os }}-${{ matrix.python}}-conda-v12-${{ hashFiles('requirements/CI-tests-conda.txt') }}
 
       - name: Install Conda
         uses: conda-incubator/setup-miniconda@v2
