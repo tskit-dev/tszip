@@ -107,7 +107,7 @@ def compress(ts, destination, variants_only=False):
         else:
             # Assume that destination is a file-like object open in "wb" mode.
             with open(filename, "rb") as source:
-                chunk_size = 2 ** 10  # 1MiB
+                chunk_size = 2**10  # 1MiB
                 for chunk in iter(functools.partial(source.read, chunk_size), b""):
                     destination.write(chunk)
 
@@ -167,7 +167,6 @@ class Column:
 
 
 def compress_zarr(ts, root, variants_only=False):
-
     provenance_dict = provenance.get_provenance_dict({"variants_only": variants_only})
 
     if variants_only:
@@ -345,12 +344,12 @@ def print_summary(path, verbosity=0):
 
     arrays.sort(key=lambda x: x.nbytes_stored)
     max_name_len = max(len(array.name) for array in arrays)
-    stored = [
+    storeds = [
         humanize.naturalsize(array.nbytes_stored, binary=True) for array in arrays
     ]
-    max_stored_len = max(len(size) for size in stored)
-    actual = [humanize.naturalsize(array.nbytes, binary=True) for array in arrays]
-    max_actual_len = max(len(size) for size in actual)
+    max_stored_len = max(len(size) for size in storeds)
+    actuals = [humanize.naturalsize(array.nbytes, binary=True) for array in arrays]
+    max_actual_len = max(len(size) for size in actuals)
 
     line = "File: {}\t{}".format(
         path, humanize.naturalsize(os.path.getsize(path), binary=True)
@@ -372,7 +371,7 @@ def print_summary(path, verbosity=0):
         "ratio",
     )
     print(line)
-    for array, stored, actual in zip(arrays, stored, actual):
+    for array, stored, actual in zip(arrays, storeds, actuals):
         ratio = 0
         if array.nbytes > 0:
             ratio = array.nbytes_stored / array.nbytes

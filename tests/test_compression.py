@@ -57,36 +57,36 @@ class TestMinimalDtype(unittest.TestCase):
         self.verify(
             np.int16,
             np.array(
-                [2 ** 15 - 1, -(2 ** 15) + 1, 2 ** 7 + 1, -(2 ** 7) - 1], dtype=np.int64
+                [2**15 - 1, -(2**15) + 1, 2**7 + 1, -(2**7) - 1], dtype=np.int64
             ),
         )
 
     def test_uint16(self):
-        self.verify(np.uint16, np.array([256, 2 ** 16 - 1], dtype=np.uint64))
+        self.verify(np.uint16, np.array([256, 2**16 - 1], dtype=np.uint64))
 
     def test_int32(self):
         self.verify(
             np.int32,
             np.array(
-                [2 ** 31 - 1, -(2 ** 31) + 1, 2 ** 15 + 1, -(2 ** 15) - 1],
+                [2**31 - 1, -(2**31) + 1, 2**15 + 1, -(2**15) - 1],
                 dtype=np.int64,
             ),
         )
 
     def test_uint32(self):
-        self.verify(np.uint32, np.array([2 ** 16 + 1, 2 ** 32 - 1], dtype=np.uint64))
+        self.verify(np.uint32, np.array([2**16 + 1, 2**32 - 1], dtype=np.uint64))
 
     def test_int64(self):
         self.verify(
             np.int64,
             np.array(
-                [2 ** 63 - 1, -(2 ** 63) + 1, 2 ** 31 + 1, -(2 ** 31) - 1],
+                [2**63 - 1, -(2**63) + 1, 2**31 + 1, -(2**31) - 1],
                 dtype=np.int64,
             ),
         )
 
     def test_uint64(self):
-        self.verify(np.uint64, np.array([2 ** 32 + 1, 2 ** 64 - 1], dtype=np.uint64))
+        self.verify(np.uint64, np.array([2**32 + 1, 2**64 - 1], dtype=np.uint64))
 
     def test_float32(self):
         self.verify(np.float32, np.array([0.1, 1e-3], dtype=np.float32))
