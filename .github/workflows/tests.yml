@@ -23,7 +23,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python: [ 3.7, 3.9 ]
+        python: [ 3.8, 3.11 ]
         os:  [ macos-latest, ubuntu-latest, windows-latest ]
     defaults:
       run:
@@ -68,7 +68,9 @@ jobs:
       - name: Install conda deps
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0} #We need a login shell to get conda
-        run: conda install --yes --file=requirements/CI-tests-conda.txt
+        run: |
+          conda install mamba
+          mamba install --yes --file=requirements/CI-tests-conda.txt
 
       - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
         if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
