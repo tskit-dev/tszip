@@ -1,4 +1,12 @@
 --------------------
+[0.2.3] - 2023-XX-XX
+--------------------
+
+- Add `tszip.load` which loads both compressed and uncompressed trees sequences
+  (benjeffery, #75)
+
+
+--------------------
 [0.2.2] - 2022-02-22
 --------------------
 
