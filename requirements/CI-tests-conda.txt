@@ -1,8 +1,8 @@
-humanize==3.13.1
+humanize==4.8.0
 h5py<3.2
-msprime==1.1.0
-pytest==6.2.5
-pytest-cov==3.0.0
-pytest-xdist==2.5.0
-tskit==0.4.1
-zarr==2.10.3
+msprime==1.2.0
+pytest==7.4.2
+pytest-cov==4.1.0
+pytest-xdist==3.3.1
+tskit==0.5.6
+zarr==2.16.1
