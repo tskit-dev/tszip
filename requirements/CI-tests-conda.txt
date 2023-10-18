@@ -1,5 +1,5 @@
 humanize==4.8.0
-h5py<3.2
+h5py==3.7.0
 msprime==1.2.0
 pytest==7.4.2
 pytest-cov==4.1.0
