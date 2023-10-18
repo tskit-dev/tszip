@@ -21,5 +21,6 @@
 # SOFTWARE.
 from .compression import compress  # NOQA
 from .compression import decompress  # NOQA
+from .compression import load  # NOQA
 from .compression import print_summary  # NOQA
 from .provenance import __version__  # NOQA

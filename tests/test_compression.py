@@ -28,6 +28,7 @@ import unittest
 
 import msprime
 import numpy as np
+import pytest
 import tskit
 import zarr
 
@@ -383,3 +384,32 @@ class TestFileErrors(unittest.TestCase):
         ts = msprime.simulate(10, random_seed=1)
         with self.assertRaises(OSError):
             tszip.compress(ts, self.path.parent)
+
+
+class TestLoad:
+    def test_missing_file(self):
+        path = "/no/such/file"
+        with pytest.raises(FileNotFoundError):
+            tszip.load(path)
+
+    def test_load_dir(self):
+        with pytest.raises(OSError):
+            tszip.load(pathlib.Path(__file__).parent)
+
+    def test_wrong_format(self, tmpdir):
+        path = pathlib.Path(tmpdir) / "treeseq.tsz"
+        with open(str(path), "w") as f:
+            f.write("")
+        with pytest.raises(EOFError):
+            tszip.load(path)
+        for contents in ["1234", "X" * 1024]:
+            with open(str(path), "w") as f:
+                f.write(contents)
+            with pytest.raises(tskit.FileFormatError):
+                tszip.load(path)
+
+    def test_open_both(self):
+        files = pathlib.Path(__file__).parent / "files"
+        ts = tszip.load(files / "1.0.0.trees.tsz")
+        ts2 = tszip.load(files / "1.0.0.trees")
+        assert ts == ts2

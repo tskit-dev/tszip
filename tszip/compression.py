@@ -388,3 +388,34 @@ def print_summary(path, verbosity=0):
         if verbosity > 0:
             for line in str(array.info).splitlines():
                 print("\t", line)
+
+
+def load(path):
+    """
+    Open a tszip or normal tskit file. This is a convenience function that
+    determines if the file needs to be decompressed or not, returning
+    the tree sequence instance in either case.
+
+    :param str path: The location of the tszip compressed file or
+        standard tskit file to load.
+    :rtype: tskit.TreeSequence
+    :return: A :class:`tskit.TreeSequence` instance corresponding to
+        the specified file.
+    """
+    path = str(path)
+
+    # Determine if the file is a zip file, this seems more robust than
+    # checking the file extension, or depending on exceptions. Note that
+    # `is_zipfile` not only checks the header but also the EOCD record at
+    # then end of the file. This means we read the file twice, but as
+    # tree sequences are usually less than a few GB this should not
+    # be a problem.
+    with open(path, "rb") as f:
+        is_zip = zipfile.is_zipfile(f)
+    if is_zip:
+        return decompress(path)
+    else:
+        # Open everything else with tskit. We could check for a
+        # kastore header here, but this way we get all the normal
+        # tskit exceptions on error
+        return tskit.load(path)
