@@ -19,10 +19,10 @@ jobs:
         with:
             submodules: true
 
-      - name: Set up Python 3.8
+      - name: Set up Python 3.10
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: 3.10
 
       - name: Build sdist
         shell: bash
@@ -51,7 +51,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9]
+        python: [3.8, 3.8, 3.9, "3.10", "3.11"]
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v2
@@ -73,7 +73,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9]
+        python: [3.8, 3.8, 3.9, "3.10", "3.11"]
         wordsize: [64]
     steps:
       - name: Download wheels
@@ -97,7 +97,7 @@ jobs:
     needs: ['manylinux']
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9]
+        python: [3.8, 3.8, 3.9, "3.10", "3.11"]
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v2

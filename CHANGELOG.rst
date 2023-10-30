@@ -1,10 +1,12 @@
 --------------------
-[0.2.3] - 2023-XX-XX
+[0.2.3] - 2023-10-30
 --------------------
 
 - Add `tszip.load` which loads both compressed and uncompressed trees sequences
   (benjeffery, #75)
 
+- tszip now supports Python 3.10 and 3.11, 3.7 support has been removed.
+  (benjeffery, #76)
 
 --------------------
 [0.2.2] - 2022-02-22
