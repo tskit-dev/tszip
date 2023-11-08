@@ -1,0 +1,7 @@
+root: index
+entries:
+- file: installation
+- file: cli
+- file: python-api
+- file: development
+- file: changelog

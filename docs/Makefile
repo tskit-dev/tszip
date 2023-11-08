@@ -1,22 +1,15 @@
-# Minimal makefile for Sphinx documentation
-#
+# Need to set PYTHONPATH so that we pick up the local tszip
+PYPATH=${PWD}/..
+TSZIP_VERSION:=$(shell PYTHONPATH=${PYPATH} \
+   python3 -c 'import tszip; print(tszip.__version__.split("+")[0])')
 
-# You can set these variables from the command line.
-SPHINXOPTS    = -W
-SPHINXBUILD   = sphinx-build
-SOURCEDIR     = .
-BUILDDIR      = _build
+dev:
+	PYTHONPATH=${PYPATH} ./build.sh
 
-all: 
-	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+dist:
+	@echo Building distribution for tszip version ${TSZIP_VERSION}
+	sed -i s/__TSZIP_VERSION__/${TSZIP_VERSION}/g _config.yml
+	PYTHONPATH=${PYPATH} ./build.sh
 
-# Put it first so that "make" without argument is like "make help".
-help:
-	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
-
-.PHONY: help Makefile
-
-# Catch-all target: route all unknown targets to Sphinx using the new
-# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-%: Makefile
-	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+clean:
+	rm -fR _build
