@@ -1,0 +1,51 @@
+# Book settings
+# Learn more at https://jupyterbook.org/customize/config.html
+
+title: Tszip manual
+author: Tskit Developers
+copyright: "2023"
+only_build_toc_files: true
+
+execute:
+  execute_notebooks: cache
+
+launch_buttons:
+  binderhub_url: ""
+
+repository:
+  url: https://github.com/tskit-dev/tszip
+  branch: main
+  path_to_book: docs
+
+html:
+  use_issues_button: true
+  use_repository_button: true
+  use_edit_page_button: true
+
+  # NOTE this gets replaced by the build infrastructure during deployment
+  extra_navbar: __TSZIP_VERSION__
+  extra_footer: __TSZIP_VERSION__
+
+sphinx:
+    extra_extensions:
+    - sphinx.ext.autodoc
+    - sphinx.ext.viewcode
+    - sphinx.ext.intersphinx
+    - sphinx_issues
+    - sphinxarg.ext
+
+    config:
+      html_theme: sphinx_book_theme
+      html_theme_options:
+         pygment_dark_style: monokai
+      myst_enable_extensions:
+      - colon_fence
+      - deflist
+      - dollarmath
+      issues_github_path: tskit-dev/tszip
+      intersphinx_mapping:
+        python: ["https://docs.python.org/3/", null]
+        tskit: ["https://tskit.dev/tskit/docs/stable/", null]
+
+      autodoc_member_order: bysource
+
