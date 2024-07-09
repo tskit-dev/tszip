@@ -26,8 +26,6 @@ jobs:
       - run:
           name: Run Python tests 
           command: |
-            # Run setup.py so that the version is defined
-            python3 setup.py build
             python3 -m pytest --cov=tszip --cov-report=xml --cov-branch -n 2 tests
             codecov
             rm .coverage
@@ -40,13 +38,10 @@ jobs:
           name: Build Python package
           command: |
             rm -fR build
-            python setup.py sdist
-            python setup.py check
-            python -m twine check dist/*.tar.gz
             python -m venv venv
             source venv/bin/activate 
-            pip install --upgrade setuptools pip wheel
-            python setup.py build_ext
-            python setup.py egg_info
-            python setup.py bdist_wheel
+            pip install --upgrade setuptools pip wheel build twine
+            python -m build --sdist
+            python -m twine check dist/*.tar.gz
+            python -m build --wheel
             pip install dist/*.tar.gz 

@@ -15,22 +15,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
             submodules: true
 
       - name: Set up Python 3.10
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
       - name: Build sdist
         shell: bash
         run: |
-          python setup.py sdist
+          python -m build --sdist
 
       - name: Upload sdist
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: sdist
           path: dist
@@ -41,7 +41,7 @@ jobs:
           docker run --rm -v `pwd`:/project -w /project quay.io/pypa/manylinux2014_x86_64 bash .github/workflows/docker/buildwheel.sh
 
       - name: Upload Wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
@@ -51,14 +51,14 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python: [3.8, 3.8, 3.9, "3.10", "3.11"]
+        python: [3.9, "3.10", 3.11, 3.12]
     steps:
       - name: Download wheels
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: wheels
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
       - name: Install wheel and test
@@ -73,15 +73,15 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python: [3.8, 3.8, 3.9, "3.10", "3.11"]
+        python: [3.9, "3.10", 3.11, 3.12]
         wordsize: [64]
     steps:
       - name: Download wheels
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: wheels
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
       - name: Install wheel and test
@@ -97,14 +97,14 @@ jobs:
     needs: ['manylinux']
     strategy:
       matrix:
-        python: [3.8, 3.8, 3.9, "3.10", "3.11"]
+        python: [3.9, "3.10", 3.11, 3.12]
     steps:
       - name: Download wheels
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: wheels
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
       - name: Install wheel and test
@@ -123,7 +123,7 @@ jobs:
       id-token: write
     steps:
       - name: Download all
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
       - name: Move to dist
         run: |
           mkdir dist
