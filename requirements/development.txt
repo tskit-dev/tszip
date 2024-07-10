@@ -12,6 +12,6 @@ sphinx_rtd_theme
 sphinx-issues
 setuptools_scm
 tskit
-zarr
+zarr<3
 msprime
 humanize

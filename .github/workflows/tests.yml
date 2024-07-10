@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.0
+        uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
       - uses: pre-commit/action@v3.0.0
 
   test:
@@ -23,36 +23,24 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python: [ 3.8, 3.11 ]
+        python: [ 3.9, 3.12 ]
         os:  [ macos-latest, ubuntu-latest, windows-latest ]
     defaults:
       run:
         shell: bash
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.6.0
+        uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: true
 
-      - name: Cache conda and dependancies
-        id: cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            c:\Miniconda\envs\anaconda-client-env
-            /usr/share/miniconda/envs/anaconda-client-env
-            ~/osx-conda
-            ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v10-${{ hashFiles('requirements/CI-tests-conda.txt') }}
-
       - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v2
-        if: steps.cache.outputs.cache-hit != 'true'
+        uses: conda-incubator/setup-miniconda@v3
         with:
           activate-environment: anaconda-client-env
           python-version: ${{ matrix.python }}
@@ -66,22 +54,9 @@ jobs:
           cp ~/.bash_profile ~/.profile
 
       - name: Install conda deps
-        if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0} #We need a login shell to get conda
         run: |
-          conda install mamba
-          mamba install --yes --file=requirements/CI-tests-conda.txt
-
-      - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
-        if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
-        run: |
-          cp -r /usr/local/miniconda/envs/anaconda-client-env ~/osx-conda
-
-      - name: Fix OSX Cache Restore
-        if: steps.cache.outputs.cache-hit == 'true' && matrix.os == 'macos-latest'
-        run: |
-          mkdir -p /usr/local/miniconda/envs
-          sudo cp -r ~/osx-conda /usr/local/miniconda/envs/anaconda-client-env
+          conda install --yes --file=requirements/CI-tests-conda.txt
 
       - name: Run tests
         run: |
