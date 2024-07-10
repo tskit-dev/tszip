@@ -1,5 +1,5 @@
 --------------------
-[0.2.4] - 2024-01-XX
+[0.2.4] - 2024-01-10
 --------------------
 
 - tszip now supports Python 3.12, 3.8 support has been removed.
