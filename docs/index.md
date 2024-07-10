@@ -4,7 +4,7 @@
 # Welcome to tszip
 
 ``tszip`` is a command line interface and Python API for compressing
-[tskit](https://tskit.readthedocs.io/) tree sequence files produced
+[tskit](https://tskit.dev/tskit) tree sequence files produced
 and read by software projects in the [tskit ecosystem](https://tskit.dev/software)
 such as [msprime](https://tskit.dev/software/msprime.html),
 [SLiM](https://messerlab.org/slim/), [fwdpy11](https://tskit.dev/software/fwdpy11.html)
