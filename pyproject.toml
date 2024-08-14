@@ -9,7 +9,7 @@ authors = [
 ]
 description = "Compression utilities for tree sequences"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 classifiers = [
     "Programming Language :: Python",
