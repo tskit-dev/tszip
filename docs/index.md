@@ -15,7 +15,7 @@ the [zarr](https://zarr.readthedocs.io/en/stable/) and
 
 The command line interface follows the design of
 [gzip](https://en.wikipedia.org/wiki/Gzip) closely, so should be immediately familiar.
-Here we compress a large tree sequence representing 1000 Genomes chromosome 22 using
+Here we compress a large tree sequence representing 1000 Genomes chromosome 20 using
 `tszip` and decompress it using ``tsunzip``:
 
 ```{code-block} bash
