@@ -14,9 +14,9 @@ jobs:
         uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-      - uses: pre-commit/action@v3.0.0
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.3.0
+      - uses: pre-commit/action@v3.0.1
 
   test:
     name: Python
@@ -35,12 +35,12 @@ jobs:
           access_token: ${{ github.token }}
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           submodules: true
 
       - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v3.1.0
         with:
           activate-environment: anaconda-client-env
           python-version: ${{ matrix.python }}
