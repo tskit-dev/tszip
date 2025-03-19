@@ -57,9 +57,7 @@ class TestMinimalDtype(unittest.TestCase):
     def test_int16(self):
         self.verify(
             np.int16,
-            np.array(
-                [2**15 - 1, -(2**15) + 1, 2**7 + 1, -(2**7) - 1], dtype=np.int64
-            ),
+            np.array([2**15 - 1, -(2**15) + 1, 2**7 + 1, -(2**7) - 1], dtype=np.int64),
         )
 
     def test_uint16(self):
