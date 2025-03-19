@@ -15,7 +15,7 @@ jobs:
         with:
           access_token: ${{ github.token }}
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-python@v5.3.0
+      - uses: actions/setup-python@v5.4.0
       - uses: pre-commit/action@v3.0.1
 
   test:
@@ -40,7 +40,7 @@ jobs:
           submodules: true
 
       - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v3.1.0
+        uses: conda-incubator/setup-miniconda@v3.1.1
         with:
           activate-environment: anaconda-client-env
           python-version: ${{ matrix.python }}

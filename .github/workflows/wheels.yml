@@ -20,7 +20,7 @@ jobs:
             submodules: true
 
       - name: Set up Python 3.10
-        uses: actions/setup-python@v5.3.0
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: "3.10"
 
@@ -31,7 +31,7 @@ jobs:
           python -m build --sdist
 
       - name: Upload sdist
-        uses: actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: sdist
           path: dist
@@ -42,7 +42,7 @@ jobs:
           docker run --rm -v `pwd`:/project -w /project quay.io/pypa/manylinux2014_x86_64 bash .github/workflows/docker/buildwheel.sh
 
       - name: Upload Wheels
-        uses: actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: wheels
           path: dist
@@ -55,11 +55,11 @@ jobs:
         python: [3.9, "3.10", 3.11, 3.12]
     steps:
       - name: Download wheels
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v4.2.0
         with:
           name: wheels
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5.3.0
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: ${{ matrix.python }}
       - name: Install wheel and test
@@ -78,11 +78,11 @@ jobs:
         wordsize: [64]
     steps:
       - name: Download wheels
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v4.2.0
         with:
           name: wheels
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5.3.0
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: ${{ matrix.python }}
       - name: Install wheel and test
@@ -101,11 +101,11 @@ jobs:
         python: [3.9, "3.10", 3.11, 3.12]
     steps:
       - name: Download wheels
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v4.2.0
         with:
           name: wheels
       - name: Set up Python
-        uses: actions/setup-python@v5.3.0
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: ${{ matrix.python }}
       - name: Install wheel and test
@@ -124,16 +124,16 @@ jobs:
       id-token: write
     steps:
       - name: Download all
-        uses: actions/download-artifact@v4.1.8
+        uses: actions/download-artifact@v4.2.0
       - name: Move to dist
         run: |
           mkdir dist
           cp */*.{whl,gz} dist/.
       - name: Publish distribution to Test PyPI
         if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@v1.12.3
+        uses: pypa/gh-action-pypi-publish@v1.12.4
         with:
           repository_url: https://test.pypi.org/legacy/
       - name: Publish distribution to PRODUCTION PyPI
         if: github.event_name == 'release'
-        uses: pypa/gh-action-pypi-publish@v1.12.3
+        uses: pypa/gh-action-pypi-publish@v1.12.4
