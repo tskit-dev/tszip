@@ -13,8 +13,6 @@ The `tsunzip` program is an alias for `tszip -d`.
 
 ## tszip
 
-The following is a placeholder for the argparse directive which is used to auto-generate documentation for a command-line interface defined in a Python module. This requires the `sphinx-argparse` extension or similar functionality in Jupyter Book.
-
 ```{argparse}
 :module: tszip.cli
 :func: tszip_cli_parser
