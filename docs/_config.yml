@@ -5,6 +5,7 @@ title: Tszip manual
 author: Tskit Developers
 copyright: "2023"
 only_build_toc_files: true
+favicon: favicon.ico
 
 execute:
   execute_notebooks: cache
@@ -22,22 +23,26 @@ html:
   use_repository_button: true
   use_edit_page_button: true
 
-  # NOTE this gets replaced by the build infrastructure during deployment
-  extra_navbar: __TSZIP_VERSION__
-  extra_footer: __TSZIP_VERSION__
 
 sphinx:
     extra_extensions:
+    - sphinx_copybutton
     - sphinx.ext.autodoc
     - sphinx.ext.viewcode
     - sphinx.ext.intersphinx
     - sphinx_issues
     - sphinxarg.ext
+    - IPython.sphinxext.ipython_console_highlighting
 
     config:
       html_theme: sphinx_book_theme
       html_theme_options:
-         pygment_dark_style: monokai
+         pygments_dark_style: monokai
+         navigation_with_keys: false
+         logo:
+           text: |
+             tszip<br/>
+             version __TSZIP_VERSION__
       myst_enable_extensions:
       - colon_fence
       - deflist
