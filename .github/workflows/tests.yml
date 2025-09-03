@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main, test]
+  merge_group:
 
 jobs:
   pre-commit:
