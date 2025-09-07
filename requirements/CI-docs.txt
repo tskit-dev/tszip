@@ -1,8 +1,0 @@
-humanize==4.10.0
-jupyter-book==1.0.4.post1
-numcodecs==0.12.1
-sphinx-issues==4.1.0
-sphinx-argparse==0.4.0
-setuptools_scm==8.1.0
-tskit==0.6.4
-zarr==2.18.2

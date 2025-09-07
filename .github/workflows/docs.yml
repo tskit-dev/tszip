@@ -8,6 +8,4 @@ on:
       - '*'
 jobs:
   Docs:
-    uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@main
-    with:
-      requirements-path: requirements/CI-docs.txt
+    uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@v1
