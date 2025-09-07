@@ -40,27 +40,23 @@ jobs:
         with:
           submodules: true
 
-      - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v3.1.1
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
         with:
-          activate-environment: anaconda-client-env
           python-version: ${{ matrix.python }}
-          channels: conda-forge
-          channel-priority: strict
-          auto-update-conda: true
-
-      - name: Fix windows .profile
-        if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
+          version: "0.8.15"
+      
+      - name: Install dependencies
         run: |
-          cp ~/.bash_profile ~/.profile
-
-      - name: Install conda deps
-        shell: bash -l {0} #We need a login shell to get conda
-        run: |
-          conda install --yes --file=requirements/CI-tests-conda.txt
+          uv venv
+          uv pip install -r pyproject.toml --extra test
 
       - name: Run tests
         run: |
-          source ~/.profile
-          conda activate anaconda-client-env
-          python -m pytest -xv -n2
+          uv run --no-sync python -m pytest -xv --cov=tszip --cov-report=xml --cov-branch -n2
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5.4.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
