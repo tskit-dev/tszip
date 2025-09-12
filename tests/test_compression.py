@@ -30,12 +30,12 @@ import msprime
 import numpy as np
 import pytest
 import tskit
-import zarr
 
 import tszip
 import tszip.compression as compression
 import tszip.exceptions as exceptions
 import tszip.provenance as provenance
+from tszip import compat
 
 
 class TestMinimalDtype(unittest.TestCase):
@@ -294,8 +294,8 @@ class TestMetadata(unittest.TestCase):
     def test_format_written(self):
         ts = msprime.simulate(10, random_seed=1)
         tszip.compress(ts, self.path)
-        with zarr.ZipStore(str(self.path), mode="r") as store:
-            root = zarr.group(store=store)
+        with compat.create_zip_store(str(self.path), mode="r") as store:
+            root = compat.create_zarr_group(store=store)
             self.assertEqual(root.attrs["format_name"], compression.FORMAT_NAME)
             self.assertEqual(root.attrs["format_version"], compression.FORMAT_VERSION)
 
@@ -303,16 +303,16 @@ class TestMetadata(unittest.TestCase):
         ts = msprime.simulate(10, random_seed=1)
         for variants_only in [True, False]:
             tszip.compress(ts, self.path, variants_only=variants_only)
-            with zarr.ZipStore(str(self.path), mode="r") as store:
-                root = zarr.group(store=store)
+            with compat.create_zip_store(str(self.path), mode="r") as store:
+                root = compat.create_zarr_group(store=store)
                 self.assertEqual(
                     root.attrs["provenance"],
                     provenance.get_provenance_dict({"variants_only": variants_only}),
                 )
 
     def write_file(self, attrs, path):
-        with zarr.ZipStore(str(path), mode="w") as store:
-            root = zarr.group(store=store)
+        with compat.create_zip_store(str(path), mode="w") as store:
+            root = compat.create_zarr_group(store=store)
             root.attrs.update(attrs)
 
     def test_missing_format_keys(self):

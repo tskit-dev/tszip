@@ -31,7 +31,6 @@ import pathlib
 import tempfile
 import warnings
 import zipfile
-from typing import Mapping
 
 import humanize
 import numcodecs
@@ -39,6 +38,7 @@ import numpy as np
 import tskit
 import zarr
 
+from . import compat
 from . import exceptions
 from . import provenance
 
@@ -98,8 +98,8 @@ def compress(ts, destination, variants_only=False):
     with tempfile.TemporaryDirectory(dir=destdir, prefix=".tszip_work_") as tmpdir:
         filename = pathlib.Path(tmpdir, "tmp.trees.tgz")
         logging.debug(f"Writing to temporary file {filename}")
-        with zarr.ZipStore(filename, mode="w") as store:
-            root = zarr.group(store=store)
+        with compat.create_zip_store(filename, mode="w") as store:
+            root = compat.create_zarr_group(store=store)
             compress_zarr(ts, root, variants_only=variants_only)
         if is_path:
             os.replace(filename, destination)
@@ -145,22 +145,26 @@ class Column:
         filters = None
         if self.delta_filter:
             filters = [numcodecs.Delta(dtype=dtype)]
-        compressed_array = root.empty(
+        compressed_array = compat.create_empty_array(
+            root,
             self.name,
-            chunks=chunks,
             shape=shape,
             dtype=dtype,
+            chunks=chunks,
             filters=filters,
             compressor=compressor,
         )
         compressed_array[:] = self.array
         ratio = 0
         if compressed_array.nbytes > 0:
-            ratio = compressed_array.nbytes / compressed_array.nbytes_stored
+            nbytes_stored = compat.get_nbytes_stored(compressed_array)
+            ratio = compressed_array.nbytes / nbytes_stored
         logger.debug(
             "{}: output={} compression={:.1f}".format(
                 self.name,
-                humanize.naturalsize(compressed_array.nbytes_stored, binary=True),
+                humanize.naturalsize(
+                    compat.get_nbytes_stored(compressed_array), binary=True
+                ),
                 ratio,
             )
         )
@@ -285,15 +289,17 @@ def check_format(root):
 def load_zarr(path):
     path = str(path)
     try:
-        store = zarr.ZipStore(path, mode="r")
+        store = compat.create_zip_store(path, mode="r")
+        root = compat.create_zarr_group(store=store)
     except zipfile.BadZipFile as bzf:
         raise exceptions.FileFormatError("File is not in tszip format") from bzf
-    root = zarr.group(store=store)
+
     try:
         check_format(root)
         yield root
     finally:
-        store.close()
+        if hasattr(store, "close"):
+            store.close()
 
 
 def decompress_zarr(root):
@@ -307,9 +313,10 @@ def decompress_zarr(root):
         "migrations/right",
         "sites/position",
     ]
-    for key, value in root.items():
-        if isinstance(value, Mapping):
-            for sub_key, sub_value in value.items():
+    for key, value in compat.group_items(root):
+        if hasattr(value, "members") or hasattr(value, "items"):
+            # This is a zarr Group, iterate over its contents
+            for sub_key, sub_value in compat.group_items(value):
                 if f"{key}/{sub_key}" in quantised_arrays:
                     dict_repr.setdefault(key, {})[sub_key] = coordinates[sub_value]
                 elif sub_key.endswith("metadata_schema") or (key, sub_key) in [
@@ -323,12 +330,14 @@ def decompress_zarr(root):
                     dict_repr.setdefault(key, {})[sub_key] = bytes(sub_value)
                 else:
                     dict_repr.setdefault(key, {})[sub_key] = sub_value
-        elif key.endswith("metadata_schema") or key == "time_units":
-            dict_repr[key] = bytes(value).decode("utf-8")
-        elif key.endswith("metadata"):
-            dict_repr[key] = bytes(value)
         else:
-            dict_repr[key] = value
+            # This is an array
+            if key.endswith("metadata_schema") or key == "time_units":
+                dict_repr[key] = bytes(value).decode("utf-8")
+            elif key.endswith("metadata"):
+                dict_repr[key] = bytes(value)
+            else:
+                dict_repr[key] = value
     return tskit.TableCollection.fromdict(dict_repr).tree_sequence()
 
 
@@ -336,16 +345,17 @@ def print_summary(path, verbosity=0):
     arrays = []
 
     def visitor(array):
-        if isinstance(array, zarr.core.Array):
+        if isinstance(array, zarr.Array):
             arrays.append(array)
 
     with load_zarr(path) as root:
-        root.visitvalues(visitor)
+        compat.visit_arrays(root, visitor)
 
-    arrays.sort(key=lambda x: x.nbytes_stored)
+    arrays.sort(key=lambda x: compat.get_nbytes_stored(x))
     max_name_len = max(len(array.name) for array in arrays)
     storeds = [
-        humanize.naturalsize(array.nbytes_stored, binary=True) for array in arrays
+        humanize.naturalsize(compat.get_nbytes_stored(array), binary=True)
+        for array in arrays
     ]
     max_stored_len = max(len(size) for size in storeds)
     actuals = [humanize.naturalsize(array.nbytes, binary=True) for array in arrays]
@@ -374,7 +384,7 @@ def print_summary(path, verbosity=0):
     for array, stored, actual in zip(arrays, storeds, actuals):
         ratio = 0
         if array.nbytes > 0:
-            ratio = array.nbytes_stored / array.nbytes
+            ratio = compat.get_nbytes_stored(array) / array.nbytes
         line = fmt.format(
             array.name,
             max_name_len,
