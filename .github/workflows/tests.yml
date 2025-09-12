@@ -50,5 +50,52 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.4.0
         with:
+          name: zarrv3
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+
+      - name: Run tests (zarr v2)
+        if: ${{ matrix.python == '3.13' }}
+        run: |
+          uv pip install "zarr>=2.17,<3"
+          uv run --no-sync python -m pytest -xv --cov=tszip --cov-report=xml --cov-branch -n2
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5.4.0
+        with:
+          name: zarrv2
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+
+  zarr-compatibility:
+    name: Zarr v2/v3 Cross-compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Install uv and set python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: 3.13
+          version: "0.8.15"
+
+      - name: Install dependencies (zarr v3)
+        run: |
+          uv venv
+          uv pip install -r pyproject.toml --extra test
+
+      - name: Write test file with zarr v3
+        run: uv run --no-sync python tests/zarr_cross_version_helper.py write test_v3.tsz
+
+      - name: Switch to zarr v2 and test reading
+        run: |
+          uv pip install "zarr>=2.17,<3"
+          uv run --no-sync python tests/zarr_cross_version_helper.py read test_v3.tsz
+          uv run --no-sync python tests/zarr_cross_version_helper.py write test_v2.tsz
+
+      - name: Switch back to zarr v3 and test reading both files
+        run: |
+          uv pip install "zarr>=3.0,<4"
+          uv run --no-sync python tests/zarr_cross_version_helper.py read test_v3.tsz
+          uv run --no-sync python tests/zarr_cross_version_helper.py read test_v2.tsz

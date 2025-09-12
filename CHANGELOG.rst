@@ -3,6 +3,7 @@
 --------------------
 
 - Drop Python 3.9 support, require Python >= 3.10 (#112, benjeffery)
+- Support zarr v3 (#114, benjeffery)
 
 --------------------
 [0.2.4] - 2024-07-10
