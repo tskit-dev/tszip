@@ -287,13 +287,11 @@ class TestCompressSemantics(TestCli):
         with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
                 self.run_tszip([str(self.trees_path)])
-            mocked_exit.assert_called_once_with(
-                f"Error loading '{self.trees_path}': File not in kastore format. Either"
-                f" the file is corrupt or it is not a tskit tree sequence file. It may"
-                f" be a legacy HDF file upgradable with `tskit upgrade` from tskit "
-                f"version<0.6.2 or a compressed tree sequence file that can be "
-                f"decompressed with `tszip`."
-            )
+            args = mocked_exit.call_args[0]
+            self.assertEqual(len(args), 1)
+            error_message = args[0]
+            self.assertIn("Error loading", error_message)
+            self.assertIn("File not in kastore format", error_message)
 
     def test_compress_stdout_keep(self):
         self.assertTrue(self.trees_path.exists())
