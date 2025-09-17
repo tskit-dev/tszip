@@ -355,6 +355,104 @@ class TestMetadata(unittest.TestCase):
             with self.assertRaises(exceptions.FileFormatError):
                 tszip.decompress(self.path)
 
+    def test_struct_metadata_roundtrip(self):
+        ts = msprime.simulate(10, random_seed=1)
+
+        struct_metadata = {
+            "reverse_node_map": [847973, 1442881, 356055, 2542708, 285222, 175110]
+        }
+
+        tables = ts.dump_tables()
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "reverse_node_map": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "binaryFormat": "I",
+                    },  # unsigned 32-bit int
+                }
+            },
+        }
+        tables.metadata_schema = tskit.MetadataSchema(schema)
+        tables.metadata = struct_metadata
+        ts_with_metadata = tables.tree_sequence()
+        tszip.compress(ts_with_metadata, self.path)
+        ts_decompressed = tszip.decompress(self.path)
+        self.assertEqual(ts_decompressed.metadata, ts_with_metadata.metadata)
+
+    def test_utf8_time_units_roundtrip(self):
+        """Test that time_units with non-ASCII UTF-8 characters work correctly."""
+        ts = msprime.simulate(10, random_seed=1)
+        tables = ts.dump_tables()
+        # Use time_units with characters that require multi-byte UTF-8 encoding (>127)
+        tables.time_units = "μβrånches per γενεᾱ 世代"  # Greek, Nordic, Chinese chars
+        ts_with_unicode_units = tables.tree_sequence()
+
+        tszip.compress(ts_with_unicode_units, self.path)
+        ts_decompressed = tszip.decompress(self.path)
+        self.assertEqual(ts_decompressed.time_units, ts_with_unicode_units.time_units)
+
+    def test_json_metadata_roundtrip(self):
+        ts = msprime.simulate(10, random_seed=1)
+
+        json_metadata = {
+            "description": "Test tree sequence with JSON metadata",
+            "sample_count": 10,
+            "parameters": {
+                "Ne": 1000,
+                "mutation_rate": 1e-8,
+                "recombination_rate": 1e-8,
+            },
+            "tags": ["test", "simulation", "msprime"],
+            "version": 1.0,
+            "unicode_text": "Héllo Wørld! 你好世界 🧬🌳",  # Characters with ASCII > 127
+            "author": "José María González-Pérez",  # Accented characters
+        }
+
+        tables = ts.dump_tables()
+        schema = {
+            "codec": "json",
+            "type": "object",
+            "properties": {
+                "description": {"type": "string"},
+                "sample_count": {"type": "integer"},
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "Ne": {"type": "number"},
+                        "mutation_rate": {"type": "number"},
+                        "recombination_rate": {"type": "number"},
+                    },
+                },
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "version": {"type": "number"},
+                "unicode_text": {"type": "string"},
+                "author": {"type": "string"},
+            },
+        }
+        tables.metadata_schema = tskit.MetadataSchema(schema)
+        tables.metadata = json_metadata
+        ts_with_metadata = tables.tree_sequence()
+        tszip.compress(ts_with_metadata, self.path)
+        ts_decompressed = tszip.decompress(self.path)
+        self.assertEqual(ts_decompressed.metadata, json_metadata)
+        self.assertEqual(
+            ts_decompressed.metadata_schema, ts_with_metadata.metadata_schema
+        )
+
+    def test_raw_metadata_with_high_bytes(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tables = ts.dump_tables()
+        raw_metadata_bytes = bytes([65, 66, 200, 150, 255, 128])  # Contains bytes > 127
+        tables.metadata = raw_metadata_bytes
+        ts_with_metadata = tables.tree_sequence()
+        tszip.compress(ts_with_metadata, self.path)
+        ts_decompressed = tszip.decompress(self.path)
+        self.assertEqual(ts_decompressed.metadata, raw_metadata_bytes)
+
 
 class TestFileErrors(unittest.TestCase):
     """
@@ -411,3 +509,20 @@ class TestLoad:
         ts = tszip.load(files / "1.0.0.trees.tsz")
         ts2 = tszip.load(files / "1.0.0.trees")
         assert ts == ts2
+
+    def test_issue95_metadata_dtype_regression(self):
+        # Test that we can decompress files with struct metadata that were compressed by
+        # version <=0.2.5 that stored metadata as the wrong dtype.
+
+        files = pathlib.Path(__file__).parent / "files"
+
+        ts_original = tszip.load(files / "issue95_metadata_dtype.trees")
+        # This file was compressed with 0.2.5 and should now decompress successfully
+        ts_decompressed = tszip.load(files / "issue95_metadata_bug.tsz")
+
+        assert ts_decompressed.metadata == ts_original.metadata
+        assert isinstance(ts_decompressed.metadata, dict)
+        assert "reverse_node_map" in ts_decompressed.metadata
+        assert len(ts_decompressed.metadata["reverse_node_map"]) == len(
+            ts_original.metadata["reverse_node_map"]
+        )

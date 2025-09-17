@@ -2,6 +2,10 @@
 [0.2.5] - 2025-XX-XX
 --------------------
 
+- In previous versions, if a metadata column had byte values outside the ASCII range,
+  the file written would raise a `ValueError` when decompressed. This is now fixed,
+  and files written with this bug are now read correctly.
+  (benjeffery, #115)
 - Drop Python 3.9 support, require Python >= 3.10 (#112, benjeffery)
 - Support zarr v3 (#114, benjeffery)
 
