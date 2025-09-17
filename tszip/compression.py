@@ -215,9 +215,9 @@ def compress_zarr(ts, root, variants_only=False):
             "reference_sequence/data",
             "reference_sequence/url",
         ]:
-            columns[name] = np.frombuffer(columns[name].encode("utf-8"), np.int8)
+            columns[name] = np.frombuffer(columns[name].encode("utf-8"), np.uint8)
         if name.endswith("metadata"):
-            columns[name] = np.frombuffer(columns[name], np.int8)
+            columns[name] = np.frombuffer(columns[name], np.uint8)
 
     # Some columns benefit from being quantised
     coordinates = np.unique(
@@ -335,7 +335,13 @@ def decompress_zarr(root):
             if key.endswith("metadata_schema") or key == "time_units":
                 dict_repr[key] = bytes(value).decode("utf-8")
             elif key.endswith("metadata"):
-                dict_repr[key] = bytes(value)
+                # Handle backward compatibility: <=0.2.5 versions stored metadata as int8
+                # which can have negative values outside the valid byte range (0-255)
+                try:
+                    dict_repr[key] = bytes(value)
+                except ValueError:
+                    uint8_value = np.array(value, dtype=np.int8).astype(np.uint8)
+                    dict_repr[key] = bytes(uint8_value)
             else:
                 dict_repr[key] = value
     return tskit.TableCollection.fromdict(dict_repr).tree_sequence()
