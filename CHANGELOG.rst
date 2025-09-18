@@ -1,5 +1,5 @@
 --------------------
-[0.2.5] - 2025-XX-XX
+[0.2.6] - 2025-09-18
 --------------------
 
 - In previous versions, if a metadata column had byte values outside the ASCII range,
@@ -8,6 +8,12 @@
   (benjeffery, #115)
 - Drop Python 3.9 support, require Python >= 3.10 (#112, benjeffery)
 - Support zarr v3 (#114, benjeffery)
+
+--------------------
+[0.2.5] - 2024-08-15
+--------------------
+
+Maintenance release
 
 --------------------
 [0.2.4] - 2024-07-10
