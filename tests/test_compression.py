@@ -526,3 +526,39 @@ class TestLoad:
         assert len(ts_decompressed.metadata["reverse_node_map"]) == len(
             ts_original.metadata["reverse_node_map"]
         )
+
+
+class TestChunkSize:
+    @pytest.mark.parametrize(
+        "chunk_size", [1, 2, 1000, 2**21, np.array([100], dtype=int)[0]]
+    )
+    def test_good_chunks(self, tmpdir, chunk_size):
+        files = pathlib.Path(__file__).parent / "files"
+        ts1 = tskit.load(files / "1.0.0.trees")
+        path = tmpdir / "out.trees.tsz"
+        tszip.compress(ts1, path, chunk_size=chunk_size)
+        ts2 = tszip.decompress(path)
+        assert ts1 == ts2
+
+        store = compat.create_zip_store(path, mode="r")
+        root = compat.create_zarr_group(store=store)
+        for _, g in root.groups():
+            for _, a in g.arrays():
+                assert a.chunks == (chunk_size,)
+
+    @pytest.mark.parametrize(
+        ["chunk_size", "exception"],
+        [
+            (0, ValueError),
+            (-1, ValueError),
+            (1.1, TypeError),
+            ("x", TypeError),
+            ("10", TypeError),
+        ],
+    )
+    def test_bad_chunks(self, tmpdir, chunk_size, exception):
+        files = pathlib.Path(__file__).parent / "files"
+        ts = tskit.load(files / "1.0.0.trees")
+        path = tmpdir / "out.trees.tsz"
+        with pytest.raises(exception):
+            tszip.compress(ts, path, chunk_size=chunk_size)

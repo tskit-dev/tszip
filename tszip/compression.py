@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019 Tskit Developers
+# Copyright (c) 2019-2026 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@ import pathlib
 import tempfile
 import warnings
 import zipfile
+import numbers
 
 import humanize
 import numcodecs
@@ -73,7 +74,7 @@ def minimal_dtype(array):
     return dtype
 
 
-def compress(ts, destination, variants_only=False):
+def compress(ts, destination, variants_only=False, *, chunk_size=None):
     """
     Compresses the specified tree sequence and writes it to the specified path
     or file-like object. By default, fully lossless compression is used so that
@@ -87,6 +88,9 @@ def compress(ts, destination, variants_only=False):
         we should write the compressed file to.
     :param bool variants_only: If True, discard all information not necessary
         to represent the variants in the input file.
+    :param int chunk_size: The number of array elements per chunk in the
+        Zarr encoding. Defaults to 2**20 (1_048_576), resulting in
+        each encoded chunk of 4-byte integer data being 4MiB.
     """
     try:
         destination = pathlib.Path(destination).resolve()
@@ -100,15 +104,15 @@ def compress(ts, destination, variants_only=False):
         logging.debug(f"Writing to temporary file {filename}")
         with compat.create_zip_store(filename, mode="w") as store:
             root = compat.create_zarr_group(store=store)
-            compress_zarr(ts, root, variants_only=variants_only)
+            compress_zarr(ts, root, variants_only=variants_only, chunk_size=chunk_size)
         if is_path:
             os.replace(filename, destination)
             logging.info(f"Wrote {destination}")
         else:
             # Assume that destination is a file-like object open in "wb" mode.
             with open(filename, "rb") as source:
-                chunk_size = 2**10  # 1MiB
-                for chunk in iter(functools.partial(source.read, chunk_size), b""):
+                read_chunk_size = 2**10  # 1MiB
+                for chunk in iter(functools.partial(source.read, read_chunk_size), b""):
                     destination.write(chunk)
 
 
@@ -131,16 +135,14 @@ class Column:
     A single column that is stored in the compressed output.
     """
 
-    def __init__(self, name, array, delta_filter=False):
+    def __init__(self, name, array, chunk_size, delta_filter=False):
         self.name = name
         self.array = array
         self.delta_filter = delta_filter
+        self.chunks = (chunk_size,)
 
     def compress(self, root, compressor):
         shape = self.array.shape
-        chunks = shape
-        if shape[0] == 0:
-            chunks = (1,)
         dtype = minimal_dtype(self.array)
         filters = None
         if self.delta_filter:
@@ -150,7 +152,7 @@ class Column:
             self.name,
             shape=shape,
             dtype=dtype,
-            chunks=chunks,
+            chunks=self.chunks,
             filters=filters,
             compressor=compressor,
         )
@@ -170,8 +172,17 @@ class Column:
         )
 
 
-def compress_zarr(ts, root, variants_only=False):
-    provenance_dict = provenance.get_provenance_dict({"variants_only": variants_only})
+def compress_zarr(ts, root, variants_only=False, chunk_size=None):
+    provenance_dict = provenance.get_provenance_dict(
+        {"variants_only": variants_only, "chunk_size": chunk_size}
+    )
+
+    if chunk_size is None:
+        chunk_size = 2**20
+    if not isinstance(chunk_size, numbers.Integral):
+        raise TypeError("Chunk size must be an integer")
+    if chunk_size < 1:
+        raise ValueError("Storage chunk size must be >= 1")
 
     if variants_only:
         logging.info("Using lossy variants-only compression")
@@ -254,9 +265,13 @@ def compress_zarr(ts, root, variants_only=False):
         cname="zstd", clevel=9, shuffle=numcodecs.Blosc.SHUFFLE
     )
     for name, data in columns.items():
-        Column(
-            name, data, delta_filter="_offset" in name or name in delta_filter_cols
-        ).compress(root, compressor)
+        col = Column(
+            name,
+            data,
+            chunk_size,
+            delta_filter="_offset" in name or name in delta_filter_cols,
+        )
+        col.compress(root, compressor)
 
 
 def check_format(root):
