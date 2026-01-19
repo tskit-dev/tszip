@@ -189,7 +189,7 @@ class RoundTripMixin:
 
     def test_ref_seq(self):
         ts = msprime.simulate(10, recombination_rate=1, mutation_rate=2, random_seed=2)
-        tables = ts.tables
+        tables = ts.dump_tables()
         tables.reference_sequence.metadata_schema = (
             tskit.MetadataSchema.permissive_json()
         )
