@@ -1,4 +1,11 @@
 --------------------
+[0.2.7] - 2026-XX-XX
+--------------------
+
+- Add support for very large columns and add the ``chunk_size`` parameter.
+  (jeromekelleher, #119).
+
+--------------------
 [0.2.6] - 2025-09-18
 --------------------
 

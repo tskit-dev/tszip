@@ -26,12 +26,12 @@ import contextlib
 import functools
 import json
 import logging
+import numbers
 import os
 import pathlib
 import tempfile
 import warnings
 import zipfile
-import numbers
 
 import humanize
 import numcodecs
@@ -47,6 +47,10 @@ logger = logging.getLogger(__name__)
 
 FORMAT_NAME = "tszip"
 FORMAT_VERSION = [1, 0]
+
+# ~8 million elements, giving 32MiB chunks to be compressed
+# for most columns
+DEFAULT_CHUNK_SIZE = 8 * 2**20
 
 
 def minimal_dtype(array):
@@ -89,8 +93,8 @@ def compress(ts, destination, variants_only=False, *, chunk_size=None):
     :param bool variants_only: If True, discard all information not necessary
         to represent the variants in the input file.
     :param int chunk_size: The number of array elements per chunk in the
-        Zarr encoding. Defaults to 2**20 (1_048_576), resulting in
-        each encoded chunk of 4-byte integer data being 4MiB.
+        Zarr encoding. Defaults to 8_388_608, resulting in
+        each encoded chunk of 4-byte integer data being 32MiB.
     """
     try:
         destination = pathlib.Path(destination).resolve()
@@ -173,16 +177,17 @@ class Column:
 
 
 def compress_zarr(ts, root, variants_only=False, chunk_size=None):
-    provenance_dict = provenance.get_provenance_dict(
-        {"variants_only": variants_only, "chunk_size": chunk_size}
-    )
-
     if chunk_size is None:
-        chunk_size = 2**20
+        chunk_size = DEFAULT_CHUNK_SIZE
     if not isinstance(chunk_size, numbers.Integral):
         raise TypeError("Chunk size must be an integer")
     if chunk_size < 1:
         raise ValueError("Storage chunk size must be >= 1")
+    chunk_size = int(chunk_size)  # Avoid issues with JSON serialisation
+
+    provenance_dict = provenance.get_provenance_dict(
+        {"variants_only": variants_only, "chunk_size": chunk_size}
+    )
 
     if variants_only:
         logging.info("Using lossy variants-only compression")

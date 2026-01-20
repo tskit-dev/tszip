@@ -65,6 +65,14 @@ def tszip_cli_parser():
     )
     parser.add_argument("files", nargs="+", help="The files to compress/decompress.")
     parser.add_argument(
+        "-C",
+        "--chunk-size",
+        type=int,
+        default=tszip.DEFAULT_CHUNK_SIZE,
+        help="Sets the size of array chunks to be compressed to the specified "
+        f"number of elements. Default={tszip.DEFAULT_CHUNK_SIZE}",
+    )
+    parser.add_argument(
         "--variants-only",
         action="store_true",
         help=(
@@ -125,7 +133,9 @@ def run_compress(args):
         check_output(outfile, args)
         if args.stdout:
             outfile = get_stdout()
-        tszip.compress(ts, outfile, variants_only=args.variants_only)
+        tszip.compress(
+            ts, outfile, variants_only=args.variants_only, chunk_size=args.chunk_size
+        )
         remove_input(infile, args)
 
 
