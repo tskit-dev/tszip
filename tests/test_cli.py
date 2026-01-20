@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019 Tskit Developers
+# Copyright (c) 2019-2026 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@ import tskit
 
 import tszip
 import tszip.cli as cli
+from tszip import compat
 
 
 def get_stdout_for_pytest():
@@ -98,6 +99,7 @@ class TestTszipArgumentParser(unittest.TestCase):
         self.assertEqual(args.decompress, False)
         self.assertEqual(args.list, False)
         self.assertEqual(args.stdout, False)
+        self.assertEqual(args.chunk_size, tszip.DEFAULT_CHUNK_SIZE)
         self.assertEqual(args.variants_only, False)
         self.assertEqual(args.suffix, ".tsz")
 
@@ -122,6 +124,14 @@ class TestTszipArgumentParser(unittest.TestCase):
         self.assertTrue(args.decompress)
         args = parser.parse_args([infile, "--decompress"])
         self.assertTrue(args.decompress)
+
+    def test_chunk_size(self):
+        parser = cli.tszip_cli_parser()
+        infile = "tmp.trees.tsz"
+        args = parser.parse_args([infile, "-C", "1234"])
+        self.assertEqual(args.chunk_size, 1234)
+        args = parser.parse_args([infile, "--chunk-size=1234"])
+        self.assertTrue(args.chunk_size, 1234)
 
 
 class TestCli(unittest.TestCase):
@@ -247,6 +257,20 @@ class TestCompressSemantics(TestCli):
         G1 = ts.genotype_matrix()
         G2 = self.ts.genotype_matrix()
         self.assertTrue(np.array_equal(G1, G2))
+
+    def test_chunk_size(self):
+        self.assertTrue(self.trees_path.exists())
+        self.run_tszip([str(self.trees_path), "--chunk-size=20"])
+        self.assertFalse(self.trees_path.exists())
+        outpath = pathlib.Path(str(self.trees_path) + ".tsz")
+        self.assertTrue(outpath.exists())
+        ts = tszip.decompress(outpath)
+        self.assertEqual(ts.tables, self.ts.tables)
+        store = compat.create_zip_store(str(outpath), mode="r")
+        root = compat.create_zarr_group(store=store)
+        for _, g in root.groups():
+            for _, a in g.arrays():
+                assert a.chunks == (20,)
 
     def test_keep(self):
         self.assertTrue(self.trees_path.exists())

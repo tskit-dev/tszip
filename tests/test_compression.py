@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2021 Tskit Developers
+# Copyright (c) 2021-2026 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -307,7 +307,12 @@ class TestMetadata(unittest.TestCase):
                 root = compat.create_zarr_group(store=store)
                 self.assertEqual(
                     root.attrs["provenance"],
-                    provenance.get_provenance_dict({"variants_only": variants_only}),
+                    provenance.get_provenance_dict(
+                        {
+                            "variants_only": variants_only,
+                            "chunk_size": compression.DEFAULT_CHUNK_SIZE,
+                        }
+                    ),
                 )
 
     def write_file(self, attrs, path):
@@ -540,7 +545,7 @@ class TestChunkSize:
         ts2 = tszip.decompress(path)
         assert ts1 == ts2
 
-        store = compat.create_zip_store(path, mode="r")
+        store = compat.create_zip_store(str(path), mode="r")
         root = compat.create_zarr_group(store=store)
         for _, g in root.groups():
             for _, a in g.arrays():
