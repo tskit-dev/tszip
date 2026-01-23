@@ -78,7 +78,7 @@ dev = [
     "coverage",
     "flake8",
     "h5py",
-    "jupyter-book",
+    "jupyter-book<2",
     "pre-commit",
     "pytest",
     "pytest-cov",
