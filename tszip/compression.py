@@ -322,48 +322,69 @@ def load_zarr(path):
             store.close()
 
 
+def _convert_string_field(array):
+    value = array[:]
+    return value.tobytes().decode("utf-8")
+
+
+def _is_string_field(group_name, array_name):
+    string_fields = [
+        (None, "time_units"),
+        ("reference_sequence", "data"),
+        ("reference_sequence", "url"),
+    ]
+    return array_name == "metadata_schema" or (group_name, array_name) in string_fields
+
+
+def _is_metadata_field(group_name, array_name):
+    return group_name in (None, "reference_sequence") and array_name == "metadata"
+
+
+def _convert_metadata_field(array):
+    # Handle backward compatibility: <=0.2.5 versions stored metadata as int8
+    # which can have negative values outside the valid byte range (0-255)
+    value = array[:].astype("uint8")
+    return value.tobytes()
+
+
 def decompress_zarr(root):
     coordinates = root["coordinates"][:]
     dict_repr = {"sequence_length": root.attrs["sequence_length"]}
 
     quantised_arrays = [
-        "edges/left",
-        "edges/right",
-        "migrations/left",
-        "migrations/right",
-        "sites/position",
+        ("edges", "left"),
+        ("edges", "right"),
+        ("migrations", "left"),
+        ("migrations", "right"),
+        ("sites", "position"),
     ]
-    for key, value in compat.group_items(root):
-        if hasattr(value, "members") or hasattr(value, "items"):
-            # This is a zarr Group, iterate over its contents
-            for sub_key, sub_value in compat.group_items(value):
-                if f"{key}/{sub_key}" in quantised_arrays:
-                    dict_repr.setdefault(key, {})[sub_key] = coordinates[sub_value]
-                elif sub_key.endswith("metadata_schema") or (key, sub_key) in [
-                    ("reference_sequence", "data"),
-                    ("reference_sequence", "url"),
-                ]:
-                    dict_repr.setdefault(key, {})[sub_key] = bytes(sub_value).decode(
-                        "utf-8"
-                    )
-                elif (key, sub_key) == ("reference_sequence", "metadata"):
-                    dict_repr.setdefault(key, {})[sub_key] = bytes(sub_value)
-                else:
-                    dict_repr.setdefault(key, {})[sub_key] = sub_value
-        else:
-            # This is an array
-            if key.endswith("metadata_schema") or key == "time_units":
-                dict_repr[key] = bytes(value).decode("utf-8")
-            elif key.endswith("metadata"):
-                # Handle backward compatibility: <=0.2.5 versions stored metadata as int8
-                # which can have negative values outside the valid byte range (0-255)
-                try:
-                    dict_repr[key] = bytes(value)
-                except ValueError:
-                    uint8_value = np.array(value, dtype=np.int8).astype(np.uint8)
-                    dict_repr[key] = bytes(uint8_value)
+    for group_name, group in root.groups():
+        group_dict = {}
+        for array_name, array in group.arrays():
+            if (group_name, array_name) in quantised_arrays:
+                value = coordinates[array[:]]
+            elif _is_string_field(group_name, array_name):
+                value = _convert_string_field(array)
+            elif _is_metadata_field(group_name, array_name):
+                value = _convert_metadata_field(array)
             else:
-                dict_repr[key] = value
+                # Otherwise, pass the zarr array through directly to
+                # tskit which will convert to appropriate numpy array
+                value = array
+            group_dict[array_name] = value
+        dict_repr[group_name] = group_dict
+
+    for array_name, array in root.arrays():
+        if array_name == "coordinates":
+            continue
+        if _is_string_field(None, array_name):
+            value = _convert_string_field(array)
+        elif _is_metadata_field(None, array_name):
+            value = _convert_metadata_field(array)
+        else:
+            value = array
+        dict_repr[array_name] = value
+
     return tskit.TableCollection.fromdict(dict_repr).tree_sequence()
 
 
