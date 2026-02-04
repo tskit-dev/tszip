@@ -56,9 +56,6 @@ if ZARR_V3:
     def get_nbytes_stored(array):
         return array.nbytes_stored()
 
-    def group_items(group):
-        return group.members()
-
     def visit_arrays(group, visitor):
         for array in group.array_values():
             visitor(array)
@@ -85,9 +82,6 @@ else:
 
     def get_nbytes_stored(array):
         return array.nbytes_stored
-
-    def group_items(group):
-        return group.items()
 
     def visit_arrays(group, visitor):
         group.visitvalues(visitor)

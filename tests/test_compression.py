@@ -104,6 +104,10 @@ class RoundTripMixin:
     Set of example tree sequences that we should be able to round trip.
     """
 
+    def test_minimal(self):
+        ts = tskit.Tree.generate_balanced(2).tree_sequence
+        self.verify(ts)
+
     def test_small_msprime_no_recomb(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=2)
         self.assertGreater(ts.num_sites, 2)
