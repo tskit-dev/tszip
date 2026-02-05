@@ -1,8 +1,8 @@
 --------------------
-[0.2.7] - 2026-XX-XX
+[0.3.0] - 2026-02-05
 --------------------
 
-- Add support for very large columns and add the ``chunk_size`` parameter.
+- Add support for columns > 2GiB, and add the ``chunk_size`` parameter.
   (jeromekelleher, #119).
 
 --------------------
