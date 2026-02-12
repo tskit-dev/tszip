@@ -3,7 +3,7 @@
 
 title: Tszip manual
 author: Tskit Developers
-copyright: "2023"
+copyright: "2026"
 only_build_toc_files: true
 favicon: favicon.ico
 
@@ -42,7 +42,7 @@ sphinx:
          logo:
            text: |
              tszip<br/>
-             version __TSZIP_VERSION__
+             version __PKG_VERSION__
       myst_enable_extensions:
       - colon_fence
       - deflist
