@@ -49,8 +49,8 @@ tsunzip = "tszip.cli:tsunzip_main"
 
 [dependency-groups]
 test = [
-    "humanize",
     "h5py",
+    "humanize",
     "msprime",
     "pytest",
     "pytest-cov",
@@ -61,9 +61,9 @@ test = [
 docs = [
     "humanize",
     "jupyter-book",
-    "sphinx-issues",
-    "sphinx-argparse",
     "setuptools_scm",
+    "sphinx-argparse",
+    "sphinx-issues",
     "tskit",
     "zarr",
 ]
@@ -72,19 +72,19 @@ dev = [
     "coverage",
     "flake8",
     "h5py",
+    "humanize",
     "jupyter-book<2",
+    "msprime",
     "pre-commit",
     "pytest",
     "pytest-cov",
     "pytest-xdist",
-    "sphinx-argparse",
-    "sphinx_rtd_theme",
-    "sphinx-issues",
     "setuptools_scm",
+    "sphinx-argparse",
+    "sphinx-issues",
+    "sphinx_rtd_theme",
     "tskit",
     "zarr",
-    "msprime",
-    "humanize",
 ]
 
 [tool.setuptools]
