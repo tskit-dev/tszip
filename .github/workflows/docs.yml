@@ -7,5 +7,5 @@ on:
     tags:
       - '*'
 jobs:
-  Docs:
-    uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@main
+  docs:
+    uses: tskit-dev/.github/.github/workflows/docs.yml@v6
