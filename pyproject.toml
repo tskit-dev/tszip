@@ -111,8 +111,6 @@ select = ["E", "F", "B", "W", "I", "N", "UP", "A", "PT"]
 ignore = [
     "A001", "A002", "RUF",
     "B905", #Don't add strict=False to zips (B905)
-    "PT009", # unittest style self.assertEqual
-    "PT027", # unittest style self.assertRaises
     "N818", # Exceptions not called "Error"
     "N806", "N802", "N803", # Various nags about uppercase vars
     "PT011", # pytest.raises(ValueError) too broad
