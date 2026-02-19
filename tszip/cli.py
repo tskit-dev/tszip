@@ -22,6 +22,7 @@
 """
 Command line interfaces to tszip.
 """
+
 import argparse
 import contextlib
 import logging
@@ -31,6 +32,7 @@ import sys
 import tskit
 
 import tszip
+
 from . import exceptions
 
 logger = logging.getLogger(__name__)
@@ -76,8 +78,7 @@ def tszip_cli_parser():
         "--variants-only",
         action="store_true",
         help=(
-            "Lossy compression; throws out information not needed to "
-            "represent variants"
+            "Lossy compression; throws out information not needed to represent variants"
         ),
     )
     parser.add_argument(
