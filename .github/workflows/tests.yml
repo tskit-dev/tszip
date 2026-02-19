@@ -7,9 +7,6 @@ on:
   merge_group:
 
 jobs:
-  pre-commit:
-    name: Lint
-    uses: tskit-dev/.github/.github/workflows/lint.yml@v2
 
   packaging:
     name: Python packaging
@@ -45,10 +42,10 @@ jobs:
           version: "0.8.15"
 
       - name: Install dependencies
-        run: uv sync --locked --group test
+        run: uv sync --locked --group test --no-default-groups
 
       - name: Run tests
-        run: uv run pytest -xv --cov=tszip --cov-report=xml --cov-branch -n2
+        run: uv run --no-default-groups pytest --cov=tszip --cov-report=xml --cov-branch -n2
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.4.0
