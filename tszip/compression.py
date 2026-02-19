@@ -39,8 +39,9 @@ import numcodecs
 import numpy as np
 import tskit
 import zarr
+from zarr.storage import ZipStore
 
-from . import compat, exceptions, provenance
+from . import exceptions, provenance
 
 logger = logging.getLogger(__name__)
 
@@ -105,8 +106,8 @@ def compress(ts, destination, variants_only=False, *, chunk_size=None):
     with tempfile.TemporaryDirectory(dir=destdir, prefix=".tszip_work_") as tmpdir:
         filename = pathlib.Path(tmpdir, "tmp.trees.tgz")
         logging.debug(f"Writing to temporary file {filename}")
-        with compat.create_zip_store(filename, mode="w") as store:
-            root = compat.create_zarr_group(store=store)
+        with ZipStore(filename, mode="w") as store:
+            root = zarr.open_group(store=store, zarr_format=2, mode="a")
             compress_zarr(ts, root, variants_only=variants_only, chunk_size=chunk_size)
         if is_path:
             os.replace(filename, destination)
@@ -150,25 +151,25 @@ class Column:
         filters = None
         if self.delta_filter:
             filters = [numcodecs.Delta(dtype=dtype)]
-        compressed_array = compat.create_empty_array(
-            root,
-            self.name,
+        compressed_array = root.empty(
+            name=self.name,
             shape=shape,
             dtype=dtype,
             chunks=self.chunks,
+            zarr_format=2,
             filters=filters,
             compressor=compressor,
         )
         compressed_array[:] = self.array
         ratio = 0
         if compressed_array.nbytes > 0:
-            nbytes_stored = compat.get_nbytes_stored(compressed_array)
+            nbytes_stored = compressed_array.nbytes_stored()
             ratio = compressed_array.nbytes / nbytes_stored
         logger.debug(
             "{}: output={} compression={:.1f}".format(
                 self.name,
                 humanize.naturalsize(
-                    compat.get_nbytes_stored(compressed_array), binary=True
+                    compressed_array.nbytes_stored(), binary=True
                 ),
                 ratio,
             )
@@ -302,8 +303,8 @@ def check_format(root):
 def load_zarr(path):
     path = str(path)
     try:
-        store = compat.create_zip_store(path, mode="r")
-        root = compat.create_zarr_group(store=store)
+        store = ZipStore(path, mode="r")
+        root = zarr.open_group(store=store, zarr_format=2, mode="r")
     except zipfile.BadZipFile as bzf:
         raise exceptions.FileFormatError("File is not in tszip format") from bzf
 
@@ -389,12 +390,13 @@ def print_summary(path, verbosity=0):
             arrays.append(array)
 
     with load_zarr(path) as root:
-        compat.visit_arrays(root, visitor)
+        for array in root.array_values():
+            visitor(array)
 
-    arrays.sort(key=lambda x: compat.get_nbytes_stored(x))
+    arrays.sort(key=lambda x: x.nbytes_stored())
     max_name_len = max(len(array.name) for array in arrays)
     storeds = [
-        humanize.naturalsize(compat.get_nbytes_stored(array), binary=True)
+        humanize.naturalsize(array.nbytes_stored(), binary=True)
         for array in arrays
     ]
     max_stored_len = max(len(size) for size in storeds)
@@ -422,7 +424,7 @@ def print_summary(path, verbosity=0):
     for array, stored, actual in zip(arrays, storeds, actuals):
         ratio = 0
         if array.nbytes > 0:
-            ratio = compat.get_nbytes_stored(array) / array.nbytes
+            ratio = array.nbytes_stored() / array.nbytes
         line = fmt.format(
             array.name,
             max_name_len,

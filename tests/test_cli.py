@@ -33,9 +33,9 @@ import numpy as np
 import pytest
 import tskit
 
+import zarr
 import tszip
 import tszip.cli as cli
-from tszip import compat
 
 
 def get_stdout_for_pytest():
@@ -265,8 +265,8 @@ class TestCompressSemantics(TestCli):
         assert outpath.exists()
         ts = tszip.decompress(outpath)
         assert ts.tables == self.ts.tables
-        store = compat.create_zip_store(str(outpath), mode="r")
-        root = compat.create_zarr_group(store=store)
+        store = zarr.storage.ZipStore(str(outpath), mode="r")
+        root = zarr.open_group(store=store, zarr_format=2, mode="r")
         for _, g in root.groups():
             for _, a in g.arrays():
                 assert a.chunks == (20,)
