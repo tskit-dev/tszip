@@ -25,7 +25,6 @@ Tests for the basic compression functionality.
 
 import pathlib
 import tempfile
-import unittest
 
 import msprime
 import numpy as np
@@ -39,7 +38,7 @@ import tszip.provenance as provenance
 from tszip import compat
 
 
-class TestMinimalDtype(unittest.TestCase):
+class TestMinimalDtype:
     """
     Test that we compute the minimal dtype for data correctly.
     """
@@ -47,7 +46,7 @@ class TestMinimalDtype(unittest.TestCase):
     def verify(self, dtype, values):
         for v in values:
             min_dtype = compression.minimal_dtype(np.array([v]))
-            self.assertEqual(min_dtype, np.dtype(dtype))
+            assert min_dtype == np.dtype(dtype)
 
     def test_int8(self):
         self.verify(np.int8, np.array([0, -1, 1, 127, -127], dtype=np.int64))
@@ -97,7 +96,7 @@ class TestMinimalDtype(unittest.TestCase):
     def test_empty(self):
         for dtype in map(np.dtype, [np.float64, np.int32, np.uint8]):
             min_dtype = compression.minimal_dtype(np.array([], dtype=dtype))
-            self.assertEqual(min_dtype, dtype)
+            assert min_dtype == dtype
 
 
 class RoundTripMixin:
@@ -111,13 +110,13 @@ class RoundTripMixin:
 
     def test_small_msprime_no_recomb(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=2)
-        self.assertGreater(ts.num_sites, 2)
+        assert ts.num_sites > 2
         self.verify(ts)
 
     def test_small_msprime_recomb(self):
         ts = msprime.simulate(10, recombination_rate=2, mutation_rate=2, random_seed=2)
-        self.assertGreater(ts.num_sites, 2)
-        self.assertGreater(ts.num_trees, 2)
+        assert ts.num_sites > 2
+        assert ts.num_trees > 2
         self.verify(ts)
 
     def test_small_msprime_migration(self):
@@ -132,15 +131,15 @@ class RoundTripMixin:
             mutation_rate=2,
             random_seed=2,
         )
-        self.assertGreater(ts.num_sites, 2)
-        self.assertGreater(ts.num_migrations, 1)
-        self.assertGreater(ts.num_trees, 2)
+        assert ts.num_sites > 2
+        assert ts.num_migrations > 1
+        assert ts.num_trees > 2
         self.verify(ts)
 
     def test_small_msprime_top_level_metadata(self):
         ts = msprime.simulate(10, recombination_rate=2, mutation_rate=2, random_seed=2)
-        self.assertGreater(ts.num_sites, 2)
-        self.assertGreater(ts.num_trees, 2)
+        assert ts.num_sites > 2
+        assert ts.num_trees > 2
         tables = ts.dump_tables()
         top_level_schema = {
             "codec": "json",
@@ -152,8 +151,8 @@ class RoundTripMixin:
 
     def test_small_msprime_individuals_metadata(self):
         ts = msprime.simulate(10, recombination_rate=1, mutation_rate=2, random_seed=2)
-        self.assertGreater(ts.num_sites, 2)
-        self.assertGreater(ts.num_trees, 2)
+        assert ts.num_sites > 2
+        assert ts.num_trees > 2
         tables = ts.dump_tables()
         tables.nodes.clear()
         for j, node in enumerate(ts.nodes()):
@@ -245,36 +244,36 @@ class RoundTripMixin:
         self.verify(tables.tree_sequence())
 
 
-class TestGenotypeRoundTrip(unittest.TestCase, RoundTripMixin):
+class TestGenotypeRoundTrip(RoundTripMixin):
     """
     Tests that we can correctly roundtrip genotype data losslessly.
     """
 
     def verify(self, ts):
         if ts.num_migrations > 0:
-            raise unittest.SkipTest("Migrations not supported")
+            pytest.skip("Migrations not supported")
         with tempfile.TemporaryDirectory() as tmpdir:
             path = pathlib.Path(tmpdir) / "treeseq.tsz"
             tszip.compress(ts, path, variants_only=True)
             other_ts = tszip.decompress(path)
-        self.assertEqual(ts.num_sites, other_ts.num_sites)
+        assert ts.num_sites == other_ts.num_sites
         for var1, var2 in zip(ts.variants(), other_ts.variants()):
-            self.assertTrue(np.array_equal(var1.genotypes, var2.genotypes))
-            self.assertEqual(var1.site.position, var2.site.position)
-            self.assertEqual(var1.alleles, var2.alleles)
+            assert np.array_equal(var1.genotypes, var2.genotypes)
+            assert var1.site.position == var2.site.position
+            assert var1.alleles == var2.alleles
         # Populations, individuals and sites should be untouched if there are no
         # unreachable individuals.
         t1 = ts.tables
         t2 = other_ts.tables
-        self.assertEqual(t1.sequence_length, t2.sequence_length)
-        self.assertEqual(t1.populations, t2.populations)
-        self.assertEqual(t1.individuals, t2.individuals)
-        self.assertEqual(t1.sites, t2.sites)
+        assert t1.sequence_length == t2.sequence_length
+        assert t1.populations == t2.populations
+        assert t1.individuals == t2.individuals
+        assert t1.sites == t2.sites
         # We should be adding an extra provenance record in here due to simplify.
-        self.assertEqual(len(t1.provenances), len(t2.provenances) - 1)
+        assert len(t1.provenances) == len(t2.provenances) - 1
 
 
-class TestExactRoundTrip(unittest.TestCase, RoundTripMixin):
+class TestExactRoundTrip(RoundTripMixin):
     def verify(self, ts):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = pathlib.Path(tmpdir) / "treeseq.tsz"
@@ -283,26 +282,23 @@ class TestExactRoundTrip(unittest.TestCase, RoundTripMixin):
         ts.tables.assert_equals(other_ts.tables)
 
 
-class TestMetadata(unittest.TestCase):
+class TestMetadata:
     """
     Tests that we correctly write the format information to the file and
     that we read it also.
     """
 
-    def setUp(self):
-        self.tmpdir = tempfile.TemporaryDirectory()
-        self.path = pathlib.Path(self.tmpdir.name) / "treeseq.tsz"
-
-    def tearDown(self):
-        del self.tmpdir
+    @pytest.fixture(autouse=True)
+    def setup(self, tmp_path):
+        self.path = tmp_path / "treeseq.tsz"
 
     def test_format_written(self):
         ts = msprime.simulate(10, random_seed=1)
         tszip.compress(ts, self.path)
         with compat.create_zip_store(str(self.path), mode="r") as store:
             root = compat.create_zarr_group(store=store)
-            self.assertEqual(root.attrs["format_name"], compression.FORMAT_NAME)
-            self.assertEqual(root.attrs["format_version"], compression.FORMAT_VERSION)
+            assert root.attrs["format_name"] == compression.FORMAT_NAME
+            assert root.attrs["format_version"] == compression.FORMAT_VERSION
 
     def test_provenance(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -310,14 +306,11 @@ class TestMetadata(unittest.TestCase):
             tszip.compress(ts, self.path, variants_only=variants_only)
             with compat.create_zip_store(str(self.path), mode="r") as store:
                 root = compat.create_zarr_group(store=store)
-                self.assertEqual(
-                    root.attrs["provenance"],
-                    provenance.get_provenance_dict(
-                        {
-                            "variants_only": variants_only,
-                            "chunk_size": compression.DEFAULT_CHUNK_SIZE,
-                        }
-                    ),
+                assert root.attrs["provenance"] == provenance.get_provenance_dict(
+                    {
+                        "variants_only": variants_only,
+                        "chunk_size": compression.DEFAULT_CHUNK_SIZE,
+                    }
                 )
 
     def write_file(self, attrs, path):
@@ -329,9 +322,9 @@ class TestMetadata(unittest.TestCase):
         values = [{}, {"format_name": ""}, {"format_version": ""}]
         for attrs in values:
             self.write_file(attrs, self.path)
-            with self.assertRaises(exceptions.FileFormatError):
+            with pytest.raises(exceptions.FileFormatError):
                 tszip.decompress(self.path)
-            with self.assertRaises(exceptions.FileFormatError):
+            with pytest.raises(exceptions.FileFormatError):
                 tszip.print_summary(self.path)
 
     def test_bad_format_name(self):
@@ -339,30 +332,30 @@ class TestMetadata(unittest.TestCase):
             self.write_file(
                 {"format_name": bad_name, "format_version": [1, 0]}, self.path
             )
-            with self.assertRaises(exceptions.FileFormatError):
+            with pytest.raises(exceptions.FileFormatError):
                 tszip.decompress(self.path)
-            with self.assertRaises(exceptions.FileFormatError):
+            with pytest.raises(exceptions.FileFormatError):
                 tszip.print_summary(self.path)
 
     def test_format_too_old(self):
         self.write_file({"format_name": "tszip", "format_version": [0, 0]}, self.path)
-        with self.assertRaises(exceptions.FileFormatError):
+        with pytest.raises(exceptions.FileFormatError):
             tszip.decompress(self.path)
-        with self.assertRaises(exceptions.FileFormatError):
+        with pytest.raises(exceptions.FileFormatError):
             tszip.print_summary(self.path)
 
     def test_format_too_new(self):
         self.write_file({"format_name": "tszip", "format_version": [2, 0]}, self.path)
-        with self.assertRaises(exceptions.FileFormatError):
+        with pytest.raises(exceptions.FileFormatError):
             tszip.decompress(self.path)
-        with self.assertRaises(exceptions.FileFormatError):
+        with pytest.raises(exceptions.FileFormatError):
             tszip.print_summary(self.path)
 
     def test_wrong_format(self):
         for contents in ["", "1234", "X" * 1024]:
             with open(str(self.path), "w") as f:
                 f.write(contents)
-            with self.assertRaises(exceptions.FileFormatError):
+            with pytest.raises(exceptions.FileFormatError):
                 tszip.decompress(self.path)
 
     def test_struct_metadata_roundtrip(self):
@@ -391,7 +384,7 @@ class TestMetadata(unittest.TestCase):
         ts_with_metadata = tables.tree_sequence()
         tszip.compress(ts_with_metadata, self.path)
         ts_decompressed = tszip.decompress(self.path)
-        self.assertEqual(ts_decompressed.metadata, ts_with_metadata.metadata)
+        assert ts_decompressed.metadata == ts_with_metadata.metadata
 
     def test_utf8_time_units_roundtrip(self):
         """Test that time_units with non-ASCII UTF-8 characters work correctly."""
@@ -403,7 +396,7 @@ class TestMetadata(unittest.TestCase):
 
         tszip.compress(ts_with_unicode_units, self.path)
         ts_decompressed = tszip.decompress(self.path)
-        self.assertEqual(ts_decompressed.time_units, ts_with_unicode_units.time_units)
+        assert ts_decompressed.time_units == ts_with_unicode_units.time_units
 
     def test_json_metadata_roundtrip(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -448,10 +441,8 @@ class TestMetadata(unittest.TestCase):
         ts_with_metadata = tables.tree_sequence()
         tszip.compress(ts_with_metadata, self.path)
         ts_decompressed = tszip.decompress(self.path)
-        self.assertEqual(ts_decompressed.metadata, json_metadata)
-        self.assertEqual(
-            ts_decompressed.metadata_schema, ts_with_metadata.metadata_schema
-        )
+        assert ts_decompressed.metadata == json_metadata
+        assert ts_decompressed.metadata_schema == ts_with_metadata.metadata_schema
 
     def test_raw_metadata_with_high_bytes(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -461,34 +452,31 @@ class TestMetadata(unittest.TestCase):
         ts_with_metadata = tables.tree_sequence()
         tszip.compress(ts_with_metadata, self.path)
         ts_decompressed = tszip.decompress(self.path)
-        self.assertEqual(ts_decompressed.metadata, raw_metadata_bytes)
+        assert ts_decompressed.metadata == raw_metadata_bytes
 
 
-class TestFileErrors(unittest.TestCase):
+class TestFileErrors:
     """
     Tests that we correctly write the format information to the file and
     that we read it also.
     """
 
-    def setUp(self):
-        self.tmpdir = tempfile.TemporaryDirectory()
-        self.path = pathlib.Path(self.tmpdir.name) / "treeseq.tsz"
-
-    def tearDown(self):
-        del self.tmpdir
+    @pytest.fixture(autouse=True)
+    def setup(self, tmp_path):
+        self.path = tmp_path / "treeseq.tsz"
 
     def test_missing_file(self):
         path = "/no/such/file"
-        with self.assertRaises(FileNotFoundError):
+        with pytest.raises(FileNotFoundError):
             tszip.decompress(path)
 
     def test_load_dir(self):
-        with self.assertRaises(OSError):
+        with pytest.raises(OSError):
             tszip.decompress(self.path.parent)
 
     def test_save_dir(self):
         ts = msprime.simulate(10, random_seed=1)
-        with self.assertRaises(OSError):
+        with pytest.raises(OSError):
             tszip.compress(ts, self.path.parent)
 
 

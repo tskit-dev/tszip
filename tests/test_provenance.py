@@ -23,8 +23,6 @@
 Tests for the basic provenance recording.
 """
 
-import unittest
-
 import numcodecs
 import tskit
 import zarr
@@ -33,7 +31,7 @@ import tszip
 from tszip import provenance
 
 
-class TestProvenance(unittest.TestCase):
+class TestProvenance:
     """
     Test basic provenance properties.
     """
@@ -47,22 +45,20 @@ class TestProvenance(unittest.TestCase):
         # Basic environment should be the same as tskit.
         d_tszip = provenance.get_provenance_dict({})
         d_tskit = tskit.provenance.get_provenance_dict()
-        self.assertEqual(d_tszip["environment"]["os"], d_tskit["environment"]["os"])
-        self.assertEqual(
-            d_tszip["environment"]["python"], d_tskit["environment"]["python"]
-        )
+        assert d_tszip["environment"]["os"] == d_tskit["environment"]["os"]
+        assert d_tszip["environment"]["python"] == d_tskit["environment"]["python"]
 
     def test_libraries(self):
         libs = provenance.get_provenance_dict({})["environment"]["libraries"]
-        self.assertEqual(libs["tskit"]["version"], tskit.__version__)
-        self.assertEqual(libs["zarr"]["version"], zarr.__version__)
-        self.assertEqual(libs["numcodecs"]["version"], numcodecs.__version__)
+        assert libs["tskit"]["version"] == tskit.__version__
+        assert libs["zarr"]["version"] == zarr.__version__
+        assert libs["numcodecs"]["version"] == numcodecs.__version__
 
     def test_sofware(self):
         software = provenance.get_provenance_dict({})["software"]
-        self.assertEqual(software, {"name": "tszip", "version": tszip.__version__})
+        assert software == {"name": "tszip", "version": tszip.__version__}
 
     def test_parameters(self):
         for params in [{}, {"a": "a"}, {"a": {"a": 1}}]:
             d = provenance.get_provenance_dict(params)["parameters"]
-            self.assertEqual(d, params)
+            assert d == params
