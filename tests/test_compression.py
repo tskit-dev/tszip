@@ -30,8 +30,8 @@ import msprime
 import numpy as np
 import pytest
 import tskit
-
 import zarr
+
 import tszip
 import tszip.compression as compression
 import tszip.exceptions as exceptions

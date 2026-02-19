@@ -165,15 +165,8 @@ class Column:
         if compressed_array.nbytes > 0:
             nbytes_stored = compressed_array.nbytes_stored()
             ratio = compressed_array.nbytes / nbytes_stored
-        logger.debug(
-            "{}: output={} compression={:.1f}".format(
-                self.name,
-                humanize.naturalsize(
-                    compressed_array.nbytes_stored(), binary=True
-                ),
-                ratio,
-            )
-        )
+        size = humanize.naturalsize(compressed_array.nbytes_stored(), binary=True)
+        logger.debug(f"{self.name}: output={size} compression={ratio:.1f}")
 
 
 def compress_zarr(ts, root, variants_only=False, chunk_size=None):
@@ -396,8 +389,7 @@ def print_summary(path, verbosity=0):
     arrays.sort(key=lambda x: x.nbytes_stored())
     max_name_len = max(len(array.name) for array in arrays)
     storeds = [
-        humanize.naturalsize(array.nbytes_stored(), binary=True)
-        for array in arrays
+        humanize.naturalsize(array.nbytes_stored(), binary=True) for array in arrays
     ]
     max_stored_len = max(len(size) for size in storeds)
     actuals = [humanize.naturalsize(array.nbytes, binary=True) for array in arrays]

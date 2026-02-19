@@ -32,8 +32,8 @@ import msprime
 import numpy as np
 import pytest
 import tskit
-
 import zarr
+
 import tszip
 import tszip.cli as cli
 
