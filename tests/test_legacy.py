@@ -22,6 +22,7 @@
 """
 Tests for files from previous releases.
 """
+
 import pathlib
 
 import tskit

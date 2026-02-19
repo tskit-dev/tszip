@@ -22,6 +22,7 @@
 """
 Tests for the basic provenance recording.
 """
+
 import unittest
 
 import numcodecs

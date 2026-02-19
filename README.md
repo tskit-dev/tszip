@@ -37,6 +37,7 @@ import tszip
 ts = tskit.load("data.trees")
 tszip.compress(ts, "data.trees.tsz")  # write compressed archive
 
-restored = tszip.load("data.trees.tsz")  # load handles .tsz archives and plain .trees files
+# load handles .tsz archives and plain .trees files
+restored = tszip.load("data.trees.tsz")
 print(restored.equals(ts))  # True
 ```

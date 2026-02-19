@@ -22,6 +22,7 @@
 """
 Test cases for the command line interface for tszip.
 """
+
 import pathlib
 import sys
 import tempfile
@@ -338,9 +339,7 @@ class TestCompressSemantics(TestCli):
         self.assertTrue(self.trees_path.exists())
         with mock.patch("tszip.cli.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
-                self.run_tszip_stdout(
-                    ["-c", str(self.trees_path), str(self.trees_path)]
-                )
+                self.run_tszip_stdout(["-c", str(self.trees_path), str(self.trees_path)])
             mocked_exit.assert_called_once_with(
                 "Only one file can be compressed on with '-c'"
             )
@@ -467,9 +466,7 @@ class DecompressSemanticsMixin:
             with self.assertRaises(TestException):
                 self.run_decompress([str(self.compressed_path)])
             mocked_exit.assert_called_once_with(
-                "Error reading '{}': File is not in tszip format".format(
-                    self.compressed_path
-                )
+                f"Error reading '{self.compressed_path}': File is not in tszip format"
             )
 
 
@@ -536,9 +533,7 @@ class TestList(unittest.TestCase):
             with self.assertRaises(TestException):
                 cli.tszip_main([str(self.compressed_path), "-l"])
             mocked_exit.assert_called_once_with(
-                "Error reading '{}': File is not in tszip format".format(
-                    self.compressed_path
-                )
+                f"Error reading '{self.compressed_path}': File is not in tszip format"
             )
 
 

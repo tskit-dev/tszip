@@ -67,15 +67,17 @@ docs = [
     "tskit",
     "zarr",
 ]
+lint = [
+    "prek"
+]
 dev = [
     "codecov",
     "coverage",
-    "flake8",
     "h5py",
     "humanize",
     "jupyter-book<2",
     "msprime",
-    "pre-commit",
+    "prek",
     "pytest",
     "pytest-cov",
     "pytest-xdist",
@@ -97,3 +99,34 @@ write_to = "tszip/_version.py"
 [tool.pytest.ini_options]
 addopts = "-n 4"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 89
+indent-width = 4
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "W", "I", "N", "UP", "A", "PT"]
+
+ignore = [
+    "A001", "A002", "RUF",
+    "B905", #Don't add strict=False to zips (B905)
+    "PT009", # unittest style self.assertEqual
+    "PT027", # unittest style self.assertRaises
+    "N818", # Exceptions not called "Error"
+    "N806", "N802", "N803", # Various nags about uppercase vars
+    "PT011", # pytest.raises(ValueError) too broad
+]
+
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+known-first-party = []
+known-third-party = [
+  "msprime",
+  "numpy",
+  "pandas",
+  "pytest",
+  "zarr"
+]

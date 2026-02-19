@@ -22,6 +22,7 @@
 """
 Compression utilities for tskit tree sequences.
 """
+
 import contextlib
 import functools
 import json
@@ -39,9 +40,7 @@ import numpy as np
 import tskit
 import zarr
 
-from . import compat
-from . import exceptions
-from . import provenance
+from . import compat, exceptions, provenance
 
 logger = logging.getLogger(__name__)
 
@@ -266,9 +265,7 @@ def compress_zarr(ts, root, variants_only=False, chunk_size=None):
     # difference between compression level 6 and 9, and it's extremely fast in any case
     # so there's no point in adding complexity. The shuffle filter in particular makes
     # big difference.
-    compressor = numcodecs.Blosc(
-        cname="zstd", clevel=9, shuffle=numcodecs.Blosc.SHUFFLE
-    )
+    compressor = numcodecs.Blosc(cname="zstd", clevel=9, shuffle=numcodecs.Blosc.SHUFFLE)
     for name, data in columns.items():
         col = Column(
             name,
@@ -287,21 +284,17 @@ def check_format(root):
         raise exceptions.FileFormatError("Incorrect file format") from ke
     if format_name != FORMAT_NAME:
         raise exceptions.FileFormatError(
-            "Incorrect file format: expected '{}' got '{}'".format(
-                FORMAT_NAME, format_name
-            )
+            f"Incorrect file format: expected '{FORMAT_NAME}' got '{format_name}'"
         )
     if format_version[0] < FORMAT_VERSION[0]:
         raise exceptions.FileFormatError(
-            "Format version {} too old. Current version = {}".format(
-                format_version, FORMAT_VERSION
-            )
+            f"Format version {format_version} too old. "
+            f"Current version = {FORMAT_VERSION}"
         )
     if format_version[0] > FORMAT_VERSION[0]:
         raise exceptions.FileFormatError(
-            "Format version {} too new. Current version = {}".format(
-                format_version, FORMAT_VERSION
-            )
+            f"Format version {format_version} too new. "
+            f"Current version = {FORMAT_VERSION}"
         )
 
 
@@ -408,9 +401,7 @@ def print_summary(path, verbosity=0):
     actuals = [humanize.naturalsize(array.nbytes, binary=True) for array in arrays]
     max_actual_len = max(len(size) for size in actuals)
 
-    line = "File: {}\t{}".format(
-        path, humanize.naturalsize(os.path.getsize(path), binary=True)
-    )
+    line = f"File: {path}\t{humanize.naturalsize(os.path.getsize(path), binary=True)}"
     print(line)
     if verbosity > 0:
         print("format_version:", root.attrs["format_version"])

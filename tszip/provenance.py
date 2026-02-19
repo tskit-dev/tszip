@@ -22,12 +22,12 @@
 """
 Versions of important dependencies and environment.
 """
+
 import platform
 
 import numcodecs
 import tskit
 import zarr
-
 
 __version__ = "undefined"
 try:

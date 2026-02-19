@@ -22,6 +22,7 @@
 """
 Compatibility layer for zarr v2/v3 API differences
 """
+
 import zarr
 
 ZARR_V3 = zarr.__version__.startswith("3.")

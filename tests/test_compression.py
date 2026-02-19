@@ -22,6 +22,7 @@
 """
 Tests for the basic compression functionality.
 """
+
 import pathlib
 import tempfile
 import unittest
@@ -556,7 +557,7 @@ class TestChunkSize:
                 assert a.chunks == (chunk_size,)
 
     @pytest.mark.parametrize(
-        ["chunk_size", "exception"],
+        ("chunk_size", "exception"),
         [
             (0, ValueError),
             (-1, ValueError),
