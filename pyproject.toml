@@ -67,26 +67,16 @@ docs = [
     "tskit",
     "zarr",
 ]
+# Fully pin lint requirements for determinism.
 lint = [
-    "prek"
+    "ruff==0.15.1",
+    "prek==0.3.3",
 ]
+
 dev = [
-    "codecov",
-    "coverage",
-    "h5py",
-    "humanize",
-    "jupyter-book<2",
-    "msprime",
-    "prek",
-    "pytest",
-    "pytest-cov",
-    "pytest-xdist",
-    "setuptools_scm",
-    "sphinx-argparse",
-    "sphinx-issues",
-    "sphinx_rtd_theme",
-    "tskit",
-    "zarr",
+    {include-group = "docs"},
+    {include-group = "lint"},
+    {include-group = "test"},
 ]
 
 [tool.setuptools]
