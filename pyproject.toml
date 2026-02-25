@@ -58,6 +58,7 @@ test = [
     "tskit",
     "zarr",
 ]
+
 docs = [
     "humanize",
     "jupyter-book",
@@ -67,16 +68,23 @@ docs = [
     "tskit",
     "zarr",
 ]
+
 # Fully pin lint requirements for determinism.
 lint = [
     "ruff==0.15.1",
     "prek==0.3.3",
 ]
 
+packaging = [
+  "twine",
+  "validate-pyproject[all]"
+]
+
 dev = [
     {include-group = "docs"},
     {include-group = "lint"},
     {include-group = "test"},
+    {include-group = "packaging"},
 ]
 
 [tool.setuptools]
