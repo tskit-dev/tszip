@@ -1,0 +1,62 @@
+# Note: this is entirely generic for Python projects and could be abstracted
+# into a resuable workflow. However, this is not supported by PyPI at the time
+# of writing: https://github.com/pypa/gh-action-pypi-publish/issues/166
+name: Publish release
+
+on:
+  push:
+    branches: [test-publish]
+  release:
+    types: [published]
+
+jobs:
+  build-distribution-artifacts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          version: "0.8.15"
+
+      - name: Build artifacts
+        run: uv build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    runs-on: ubuntu-24.04
+    environment: release
+    needs: [ 'build-distribution-artifacts' ]
+    permissions:
+      id-token: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v7.0.0
+        with:
+          name: dist
+          path: dist
+
+      - name: Show artifacts
+        run: ls -lah dist
+
+      - name: Publish distribution to Test PyPI
+        if: github.event_name == 'push' && github.ref_name == 'test-publish'
+        uses: pypa/gh-action-pypi-publish@v1.13.0
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          verbose: true
+
+      - name: Publish distribution to PRODUCTION PyPI
+        if: github.event_name == 'release'
+        uses: pypa/gh-action-pypi-publish@v1.13.0
