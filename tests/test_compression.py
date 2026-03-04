@@ -296,7 +296,7 @@ class TestMetadata:
         ts = msprime.simulate(10, random_seed=1)
         tszip.compress(ts, self.path)
         with zarr.storage.ZipStore(str(self.path), mode="r") as store:
-            root = zarr.open_group(store=store, zarr_format=2, mode="r")
+            root = zarr.open_group(store=store, mode="r")
             assert root.attrs["format_name"] == compression.FORMAT_NAME
             assert root.attrs["format_version"] == compression.FORMAT_VERSION
 
@@ -305,7 +305,7 @@ class TestMetadata:
         for variants_only in [True, False]:
             tszip.compress(ts, self.path, variants_only=variants_only)
             with zarr.storage.ZipStore(str(self.path), mode="r") as store:
-                root = zarr.open_group(store=store, zarr_format=2, mode="r")
+                root = zarr.open_group(store=store, mode="r")
                 assert root.attrs["provenance"] == provenance.get_provenance_dict(
                     {
                         "variants_only": variants_only,
@@ -315,7 +315,7 @@ class TestMetadata:
 
     def write_file(self, attrs, path):
         with zarr.storage.ZipStore(str(path), mode="w") as store:
-            root = zarr.open_group(store=store, zarr_format=2, mode="a")
+            root = zarr.open_group(store=store, mode="a")
             root.attrs.update(attrs)
 
     def test_missing_format_keys(self):
@@ -539,7 +539,7 @@ class TestChunkSize:
         assert ts1 == ts2
 
         store = zarr.storage.ZipStore(str(path), mode="r")
-        root = zarr.open_group(store=store, zarr_format=2, mode="r")
+        root = zarr.open_group(store=store, mode="r")
         for _, g in root.groups():
             for _, a in g.arrays():
                 assert a.chunks == (chunk_size,)

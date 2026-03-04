@@ -266,7 +266,7 @@ class TestCompressSemantics(TestCli):
         ts = tszip.decompress(outpath)
         assert ts.tables == self.ts.tables
         store = zarr.storage.ZipStore(str(outpath), mode="r")
-        root = zarr.open_group(store=store, zarr_format=2, mode="r")
+        root = zarr.open_group(store=store, mode="r")
         for _, g in root.groups():
             for _, a in g.arrays():
                 assert a.chunks == (20,)

@@ -32,7 +32,7 @@ dependencies = [
     "numpy",
     "humanize",
     "tskit>=1.0.0",
-    "zarr>=3.1",
+    "zarr>=2.18,<3",
 ]
 dynamic = ["version"]
 

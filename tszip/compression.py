@@ -107,7 +107,7 @@ def compress(ts, destination, variants_only=False, *, chunk_size=None):
         filename = pathlib.Path(tmpdir, "tmp.trees.tgz")
         logging.debug(f"Writing to temporary file {filename}")
         with ZipStore(filename, mode="w") as store:
-            root = zarr.open_group(store=store, zarr_format=2, mode="a")
+            root = zarr.open_group(store=store, mode="a")
             compress_zarr(ts, root, variants_only=variants_only, chunk_size=chunk_size)
         if is_path:
             os.replace(filename, destination)
@@ -156,7 +156,6 @@ class Column:
             shape=shape,
             dtype=dtype,
             chunks=self.chunks,
-            zarr_format=2,
             filters=filters,
             compressor=compressor,
         )
@@ -297,7 +296,7 @@ def load_zarr(path):
     path = str(path)
     try:
         store = ZipStore(path, mode="r")
-        root = zarr.open_group(store=store, zarr_format=2, mode="r")
+        root = zarr.open_group(store=store, mode="r")
     except zipfile.BadZipFile as bzf:
         raise exceptions.FileFormatError("File is not in tszip format") from bzf
 
