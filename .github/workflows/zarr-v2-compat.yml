@@ -1,0 +1,23 @@
+name: zarr v2 compatibility
+
+on:
+  pull_request:
+  push:
+    branches: [main, test]
+
+jobs:
+  test:
+    name: zarr v2 / Python 3.11 / ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install with zarr v2
+        run: |
+          echo "zarr<3" > zarr-override.txt
+          uv sync --python 3.11 --group test --override zarr-override.txt
+
+      - name: Run tests
+        run: uv run pytest
