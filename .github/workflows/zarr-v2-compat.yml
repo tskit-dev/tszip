@@ -14,10 +14,11 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
 
-      - name: Install with zarr v2
-        run: |
-          echo "zarr<3" > zarr-override.txt
-          uv sync --python 3.11 --group test --override zarr-override.txt
+      - name: Install dependencies
+        run: uv sync --python 3.11 --group test
+
+      - name: Downgrade zarr to v2
+        run: uv pip install "zarr>=2.18,<3"
 
       - name: Run tests
         run: uv run pytest
