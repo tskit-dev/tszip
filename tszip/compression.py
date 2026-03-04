@@ -39,9 +39,8 @@ import numcodecs
 import numpy as np
 import tskit
 import zarr
-from zarr.storage import ZipStore
 
-from . import exceptions, provenance
+from . import _zarr_compat, exceptions, provenance
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +105,8 @@ def compress(ts, destination, variants_only=False, *, chunk_size=None):
     with tempfile.TemporaryDirectory(dir=destdir, prefix=".tszip_work_") as tmpdir:
         filename = pathlib.Path(tmpdir, "tmp.trees.tgz")
         logging.debug(f"Writing to temporary file {filename}")
-        with ZipStore(filename, mode="w") as store:
-            root = zarr.open_group(store=store, zarr_format=2, mode="a")
+        with _zarr_compat.open_zip_store(filename, mode="w") as store:
+            root = _zarr_compat.open_group_for_write(store)
             compress_zarr(ts, root, variants_only=variants_only, chunk_size=chunk_size)
         if is_path:
             os.replace(filename, destination)
@@ -151,12 +150,12 @@ class Column:
         filters = None
         if self.delta_filter:
             filters = [numcodecs.Delta(dtype=dtype)]
-        compressed_array = root.empty(
+        compressed_array = _zarr_compat.empty_array(
+            root,
             name=self.name,
             shape=shape,
             dtype=dtype,
             chunks=self.chunks,
-            zarr_format=2,
             filters=filters,
             compressor=compressor,
         )
@@ -296,8 +295,8 @@ def check_format(root):
 def load_zarr(path):
     path = str(path)
     try:
-        store = ZipStore(path, mode="r")
-        root = zarr.open_group(store=store, zarr_format=2, mode="r")
+        store = _zarr_compat.open_zip_store(path, mode="r")
+        root = _zarr_compat.open_group_for_read(store)
     except zipfile.BadZipFile as bzf:
         raise exceptions.FileFormatError("File is not in tszip format") from bzf
 

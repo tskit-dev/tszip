@@ -30,12 +30,12 @@ import msprime
 import numpy as np
 import pytest
 import tskit
-import zarr
 
 import tszip
 import tszip.compression as compression
 import tszip.exceptions as exceptions
 import tszip.provenance as provenance
+from tszip import _zarr_compat
 
 
 class TestMinimalDtype:
@@ -295,8 +295,8 @@ class TestMetadata:
     def test_format_written(self):
         ts = msprime.simulate(10, random_seed=1)
         tszip.compress(ts, self.path)
-        with zarr.storage.ZipStore(str(self.path), mode="r") as store:
-            root = zarr.open_group(store=store, zarr_format=2, mode="r")
+        with _zarr_compat.open_zip_store(self.path, mode="r") as store:
+            root = _zarr_compat.open_group_for_read(store)
             assert root.attrs["format_name"] == compression.FORMAT_NAME
             assert root.attrs["format_version"] == compression.FORMAT_VERSION
 
@@ -304,8 +304,8 @@ class TestMetadata:
         ts = msprime.simulate(10, random_seed=1)
         for variants_only in [True, False]:
             tszip.compress(ts, self.path, variants_only=variants_only)
-            with zarr.storage.ZipStore(str(self.path), mode="r") as store:
-                root = zarr.open_group(store=store, zarr_format=2, mode="r")
+            with _zarr_compat.open_zip_store(self.path, mode="r") as store:
+                root = _zarr_compat.open_group_for_read(store)
                 assert root.attrs["provenance"] == provenance.get_provenance_dict(
                     {
                         "variants_only": variants_only,
@@ -314,8 +314,8 @@ class TestMetadata:
                 )
 
     def write_file(self, attrs, path):
-        with zarr.storage.ZipStore(str(path), mode="w") as store:
-            root = zarr.open_group(store=store, zarr_format=2, mode="a")
+        with _zarr_compat.open_zip_store(path, mode="w") as store:
+            root = _zarr_compat.open_group_for_write(store)
             root.attrs.update(attrs)
 
     def test_missing_format_keys(self):
@@ -538,8 +538,8 @@ class TestChunkSize:
         ts2 = tszip.decompress(path)
         assert ts1 == ts2
 
-        store = zarr.storage.ZipStore(str(path), mode="r")
-        root = zarr.open_group(store=store, zarr_format=2, mode="r")
+        store = _zarr_compat.open_zip_store(path, mode="r")
+        root = _zarr_compat.open_group_for_read(store)
         for _, g in root.groups():
             for _, a in g.arrays():
                 assert a.chunks == (chunk_size,)
