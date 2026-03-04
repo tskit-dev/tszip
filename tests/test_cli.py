@@ -32,10 +32,10 @@ import msprime
 import numpy as np
 import pytest
 import tskit
-import zarr
 
 import tszip
 import tszip.cli as cli
+from tszip import _zarr_compat
 
 
 def get_stdout_for_pytest():
@@ -265,8 +265,8 @@ class TestCompressSemantics(TestCli):
         assert outpath.exists()
         ts = tszip.decompress(outpath)
         assert ts.tables == self.ts.tables
-        store = zarr.storage.ZipStore(str(outpath), mode="r")
-        root = zarr.open_group(store=store, zarr_format=2, mode="r")
+        store = _zarr_compat.open_zip_store(outpath, mode="r")
+        root = _zarr_compat.open_group_for_read(store)
         for _, g in root.groups():
             for _, a in g.arrays():
                 assert a.chunks == (20,)
