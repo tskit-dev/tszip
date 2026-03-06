@@ -21,7 +21,6 @@ jobs:
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.12"
           version: "0.10.0"
 
       - name: Build artifacts
