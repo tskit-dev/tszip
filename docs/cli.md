@@ -11,7 +11,7 @@ Online help is available using the `--help` option.
 
 The `tsunzip` program is an alias for `tszip -d`.
 
-To compress or decompress a single file to a different filename, simply pipe to a new file via stdout:
+To compress or decompress a single file to a different filename, redirect stdout to a new file:
 
 ```sh
 tszip -c myfile.trees > compressed.tsz
