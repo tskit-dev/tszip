@@ -6,6 +6,10 @@ on:
     branches: [main]
     tags:
       - '*'
+
+permissions:
+  contents: read
+
 jobs:
   docs:
     uses: tskit-dev/.github/.github/workflows/docs.yml@v17
