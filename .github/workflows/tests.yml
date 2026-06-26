@@ -6,6 +6,9 @@ on:
     branches: [main, test]
   merge_group:
 
+permissions:
+  contents: read
+
 jobs:
 
   packaging:
@@ -17,7 +20,10 @@ jobs:
 
   test:
     name: Python
-    uses: tskit-dev/.github/.github/workflows/python-tests.yml@v17
+    # This first-party tskit-dev reusable workflow consumes
+    # secrets.CODECOV_TOKEN without declaring it as a named workflow_call
+    # secret, so `secrets: inherit` is required for it to work.
+    uses: tskit-dev/.github/.github/workflows/python-tests.yml@v17  # zizmor: ignore[secrets-inherit]
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python }}
